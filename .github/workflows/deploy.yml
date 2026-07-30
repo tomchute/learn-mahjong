@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 
-# Deploys from main and from the active working branch (all development
-# happens there; main only carries the initial commit). Tests gate the deploy.
+# Every push builds and tests; only main deploys (the github-pages
+# environment restricts deployments to the default branch).
 on:
   push:
     branches: [main, 'claude/mahjong-learning-app-mdiiej']
@@ -37,6 +37,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

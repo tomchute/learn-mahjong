@@ -35,10 +35,16 @@ was NOT needed; the app follows the booklet.
 
 ## Deployment
 
-Static site. `.github/workflows/deploy.yml` publishes to GitHub Pages on push
-to `main` AND to the working branch (added 2026-07-30 so the owner can play
-without merging); it uses `actions/configure-pages` with `enablement: true`
-to switch Pages on automatically. Tests gate the deploy.
+LIVE at https://tomchute.github.io/learn-mahjong/ — repo was made public on
+2026-07-30 (owner's choice; Actions jobs were blocked on the private repo)
+and the owner set Pages → Source: GitHub Actions in the UI (the workflow
+token can deploy but cannot *create* the Pages site).
+
+`.github/workflows/deploy.yml`: every push to main or the working branch
+builds + tests; only main deploys (the auto-created `github-pages`
+environment restricts deployments to the default branch). Ship flow:
+merge/push the working branch to `main` → auto-deploy. Owner gave explicit
+permission for merges to main for deployment (2026-07-30).
 
 **Offline play (owner request: mahjong on a flight)** — two modes, both
 verified headless with the network cut:
