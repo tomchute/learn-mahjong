@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
+# Deploys from main and from the active working branch (all development
+# happens there; main only carries the initial commit). Tests gate the deploy.
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/mahjong-learning-app-mdiiej']
   workflow_dispatch:
 
 permissions:
@@ -26,6 +28,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

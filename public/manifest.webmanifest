@@ -1,0 +1,16 @@
+{
+  "name": "Learn Mahjong",
+  "short_name": "Mahjong",
+  "description": "Learn Hong Kong-style mahjong by playing a full match against three AI opponents, with a coach that explains everything.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#35654d",
+  "theme_color": "#35654d",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

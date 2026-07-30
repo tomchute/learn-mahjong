@@ -46,9 +46,26 @@ preview server running on port 4173).
 ## Deploying
 
 The app is a static site (`dist/` after `npm run build`) and runs anywhere.
-A GitHub Actions workflow (`.github/workflows/deploy.yml`) is included that
-publishes to GitHub Pages — enable **Settings → Pages → Source: GitHub
-Actions** on the repository to activate it.
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) publishes to
+GitHub Pages on every push (tests must pass first) and enables Pages
+automatically on first run.
+
+## Playing offline (e.g. on a flight)
+
+No server is needed — the game runs entirely in your browser and two offline
+modes are built in:
+
+- **Install it as an app (recommended)**: open the GitHub Pages site once
+  while online, then use *Add to Home Screen* (iOS Safari: Share → Add to
+  Home Screen; Android Chrome: menu → Add to Home screen / Install app).
+  A service worker precaches the whole game, so it launches and plays fully
+  offline in airplane mode. Revisit once while online to pick up updates.
+- **Single file**: every build also produces `learn-mahjong-offline.html`
+  (~220 KB, everything inlined). Download it from the deployed site at
+  `learn-mahjong-offline.html`, save it anywhere (phone, laptop, USB stick)
+  and open it in a browser — works from `file://` with no network at all.
+  Note: settings/stats persistence (localStorage) may not survive across
+  openings in this mode on some browsers; the installed-app mode keeps them.
 
 ## Project structure
 
