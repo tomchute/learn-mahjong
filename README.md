@@ -61,9 +61,11 @@ modes are built in:
   A service worker precaches the whole game, so it launches and plays fully
   offline in airplane mode. Revisit once while online to pick up updates.
 - **Single file**: every build also produces `learn-mahjong-offline.html`
-  (~220 KB, everything inlined). Download it from the deployed site at
-  `learn-mahjong-offline.html`, save it anywhere (phone, laptop, USB stick)
-  and open it in a browser — works from `file://` with no network at all.
+  (~220 KB, everything inlined). A copy is committed at the repo root, and
+  the deployed site serves it at `learn-mahjong-offline.html` — download it,
+  save it anywhere (phone, laptop, USB stick) and open it in a browser; it
+  works from `file://` with no network at all. Best on Android/desktop —
+  iOS makes opening local HTML awkward, so prefer the installed app there.
   Note: settings/stats persistence (localStorage) may not survive across
   openings in this mode on some browsers; the installed-app mode keeps them.
 

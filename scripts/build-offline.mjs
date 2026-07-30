@@ -37,5 +37,8 @@ for (const leftover of html.matchAll(/(src|href)="\.\/(assets|icons)\/[^"]+"/g))
 }
 
 writeFileSync(`${DIST}/learn-mahjong-offline.html`, html);
+// Also keep a committed copy at the repo root so it can be downloaded straight
+// from GitHub even when Pages/Actions are unavailable.
+writeFileSync('learn-mahjong-offline.html', html);
 const kb = Math.round(Buffer.byteLength(html) / 1024);
-console.log(`wrote dist/learn-mahjong-offline.html (${kb} KB, fully self-contained)`);
+console.log(`wrote learn-mahjong-offline.html (${kb} KB, fully self-contained) to dist/ and repo root`);
