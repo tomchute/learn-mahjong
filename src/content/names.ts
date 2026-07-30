@@ -18,7 +18,7 @@ export function tileName(kind: TileKind): string {
     case 'wind':
       return v === 'E' ? 'East 東' : v === 'S' ? 'South 南' : v === 'W' ? 'West 西' : 'North 北';
     case 'dragon':
-      return v === 'R' ? 'Red 中' : v === 'G' ? 'Green 發' : 'White ▢';
+      return v === 'R' ? 'Red 中' : v === 'G' ? 'Green 發' : 'White 白';
     case 'flower': {
       const n = Number(v);
       return n <= 4 ? `Flower ${n}` : `Season ${n - 4}`;

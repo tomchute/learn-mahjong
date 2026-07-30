@@ -64,6 +64,8 @@ export interface HandResult {
   payments: number[];         // chip delta per player
   winningTile: Tile | null;
   winnerHand: { concealed: Tile[]; melds: Meld[]; flowers: Tile[] } | null;
+  /** seat winds during the hand (dealer rotation happens after) */
+  seatWinds: Wind[];
 }
 
 interface PendingClaim {
@@ -587,6 +589,7 @@ export class Game {
         melds: p.melds.map((m) => ({ ...m, tiles: m.tiles.slice() })),
         flowers: p.flowers.slice(),
       },
+      seatWinds: [0, 1, 2, 3].map((i) => this.seatWind(i)),
     };
     this.emit({ type: 'win', player, from, score, winningTile, selfDraw });
     this.phase = 'hand-end';
@@ -598,6 +601,7 @@ export class Game {
     this.handResult = {
       winner: null, from: null, score: null,
       payments: [0, 0, 0, 0], winningTile: null, winnerHand: null,
+      seatWinds: [0, 1, 2, 3].map((i) => this.seatWind(i)),
     };
     this.phase = 'hand-end';
     // draw: dealer stays ("the dice roll goes back to the same person")

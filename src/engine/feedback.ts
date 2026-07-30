@@ -18,11 +18,15 @@ export interface DiscardFeedback {
   shantenAfter: number;
 }
 
-/** Evaluate a human discard BEFORE claims resolve (call right after discard). */
+/**
+ * Evaluate a human discard. Call BEFORE game.discard() so opponent hands are
+ * still in their pre-claim state (the tile is still in the player's hand).
+ */
 export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
   const p = game.players[0];
-  const kindsAfter = p.concealed.map((t) => t.kind); // tile already removed
-  const kindsBefore = [...kindsAfter, tile.kind];
+  const kindsBefore = p.concealed.map((t) => t.kind); // includes the tile
+  const kindsAfter = kindsBefore.slice();
+  kindsAfter.splice(kindsAfter.indexOf(tile.kind), 1);
   const melds = p.melds.length;
 
   const before = shanten(kindsBefore, melds); // shanten of the 14-tile hand pre-discard...
