@@ -100,7 +100,11 @@ verified headless with the network cut:
    — wire WebAudio clicks/claims/win jingle).
 6. **Coach depth setting** — beginner/intermediate verbosity; currently one
    level. The 60-message cap is also worth revisiting for a "review this
-   hand" scroll-back.
+   hand" scroll-back. (Partially addressed 2026-07-30: wins are now explained
+   structurally — grouped sets + pair with labels on the hand-end screen, fan
+   sources in the coach feed — and an "Explain my hand" button on the coach
+   bar describes the player's structure, partials, floaters, and reachable
+   fan patterns via `src/engine/explain.ts`.)
 7. **Landscape/tablet layout** — currently portrait-optimized with a 560px
    max width.
 8. **A11y pass** — keyboard works on the rack; claim buttons/modals still

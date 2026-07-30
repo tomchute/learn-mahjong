@@ -2,6 +2,7 @@ import { useSyncExternalStore, useRef, useCallback, useEffect } from 'react';
 import { Game, GameEvent, ChowOption } from './engine/game';
 import { attachAi } from './engine/ai';
 import { evaluateDiscard, DiscardFeedback, suggestDiscard, Hint, describeShanten } from './engine/feedback';
+import { explainMyHand, explainWinStructure, fanSummaryLine } from './engine/explain';
 import { shanten as shantenFn } from './engine/hand';
 import { pickRandomSeed } from './engine/rng';
 import { Tile, TileKind } from './engine/types';
@@ -192,6 +193,14 @@ export class GameStore {
     this.bump();
   }
 
+  /** "Explain my hand": structure, progress, and fan opportunities. */
+  explainHand() {
+    const ex = explainMyHand(this.game);
+    if (!ex) return;
+    this.say('action', ex.headline, ex.details);
+    this.bump();
+  }
+
   proceed() {
     const g = this.game;
     if (g.phase !== 'hand-end') return;
@@ -304,9 +313,17 @@ export class GameStore {
         return { tone: 'info', text: 'The wall is empty — this hand is a draw. No points change; the same dealer deals again.' };
       case 'win': {
         const how = e.selfDraw ? 'self-draw (zi mo)' : e.from !== null ? `off ${name(e.from)}${e.from === 0 ? 'r' : "'s"} discard` : '';
+        const details: string[] = [];
+        const hr = g.handResult;
+        if (hr?.winnerHand && e.score.decomp) {
+          details.push(...explainWinStructure(hr.winnerHand, e.score.decomp, hr.winningTile).summary);
+        }
+        const fanLine = fanSummaryLine(e.score.items);
+        if (fanLine) details.push(fanLine);
         return {
           tone: e.player === 0 ? 'win' : 'bad',
           text: `${name(e.player)} won the hand ${how} — ${e.score.fan} fan!`,
+          details,
         };
       }
     }

@@ -3,6 +3,9 @@ import { GameStore } from '../store';
 import { Tile } from './Tile';
 import { MeldView } from './Table';
 import { WIND_LABEL } from '../content/names';
+import { explainWinStructure } from '../engine/explain';
+import { WinDecomp } from '../engine/hand';
+import { Tile as TileT, Meld } from '../engine/types';
 
 /** End-of-hand screen: winning hand, fan breakdown, payments. */
 export function HandEndModal({ store }: { store: GameStore }) {
@@ -33,17 +36,25 @@ export function HandEndModal({ store }: { store: GameStore }) {
             </p>
 
             {r.winnerHand && (
-              <div className="win-hand">
-                <div className="win-tiles">
-                  {r.winnerHand.concealed.map((t) => (
-                    <Tile key={t.id} kind={t.kind} size={26} highlight={r.winningTile?.id === t.id ? 'win' : null} />
-                  ))}
-                </div>
-                <div className="win-melds">
-                  {r.winnerHand.melds.map((m, i) => <MeldView key={i} meld={m} size={22} />)}
-                  {r.winnerHand.flowers.map((f) => <Tile key={f.id} kind={f.kind} size={18} className="tile-flower" />)}
-                </div>
-              </div>
+              r.score!.decomp
+                ? <WinStructure
+                    hand={r.winnerHand}
+                    decomp={r.score!.decomp}
+                    winningTile={r.winningTile}
+                  />
+                : (
+                  <div className="win-hand">
+                    <div className="win-tiles">
+                      {r.winnerHand.concealed.map((t) => (
+                        <Tile key={t.id} kind={t.kind} size={30} highlight={r.winningTile?.id === t.id ? 'win' : null} />
+                      ))}
+                    </div>
+                    <div className="win-melds">
+                      {r.winnerHand.melds.map((m, i) => <MeldView key={i} meld={m} size={26} />)}
+                      {r.winnerHand.flowers.map((f) => <Tile key={f.id} kind={f.kind} size={20} className="tile-flower" />)}
+                    </div>
+                  </div>
+                )
             )}
 
             <table className="fan-table">
@@ -88,6 +99,45 @@ export function HandEndModal({ store }: { store: GameStore }) {
           {g.matchWillEnd ? 'See final results' : 'Next hand'}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The winning hand grouped into its sets + pair, each labeled, so a beginner
+ * can see WHY the hand is complete — plus a sentence or two of explanation.
+ */
+function WinStructure({ hand, decomp, winningTile }: {
+  hand: { concealed: TileT[]; melds: Meld[]; flowers: TileT[] };
+  decomp: WinDecomp;
+  winningTile: TileT | null;
+}) {
+  const { groups, summary } = explainWinStructure(hand, decomp, winningTile);
+  return (
+    <div className="win-hand">
+      <div className="win-groups">
+        {groups.map((grp, i) => (
+          <div key={i} className="win-group">
+            <div className="win-group-tiles">
+              {grp.meld
+                ? <MeldView meld={grp.meld} size={28} />
+                : grp.tiles!.map((t) => (
+                    <Tile key={t.id} kind={t.kind} size={28} highlight={winningTile?.id === t.id ? 'win' : null} />
+                  ))}
+            </div>
+            <div className="win-group-label">{grp.label}</div>
+          </div>
+        ))}
+        {hand.flowers.length > 0 && (
+          <div className="win-group">
+            <div className="win-group-tiles win-group-flowers">
+              {hand.flowers.map((f) => <Tile key={f.id} kind={f.kind} size={20} />)}
+            </div>
+            <div className="win-group-label">flowers · bonus</div>
+          </div>
+        )}
+      </div>
+      {summary.map((s, i) => <div key={i} className="win-structure-note">{s}</div>)}
     </div>
   );
 }

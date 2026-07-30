@@ -96,6 +96,11 @@ export const ONBOARDING: OnboardingStep[] = [
     anchor: 'rack',
   },
   {
+    id: 'explain',
+    text: 'Feeling lost? Tap "Explain my hand" on the coach bar any time — the coach breaks down what you have, what to keep building, and which bonus points (fan) are within reach.',
+    anchor: 'coach',
+  },
+  {
     id: 'table',
     text: 'The other three players are around the table. Play moves counter-clockwise; watch their discards appear in the middle.',
     anchor: 'discards',

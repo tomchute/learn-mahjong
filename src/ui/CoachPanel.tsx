@@ -22,13 +22,26 @@ export function CoachPanel({ store }: { store: GameStore }) {
 
   if (!latest) return null;
 
+  const g = store.game;
+  const canExplain = g.phase === 'awaiting-discard' || g.phase === 'awaiting-claims';
+
   return (
     <div className={`coach ${expanded ? 'coach-expanded' : ''}`}>
-      <button className="coach-toggle" onClick={() => setExpanded(!expanded)}>
-        <span className="coach-avatar">🀄</span>
-        <span className="coach-label">Coach</span>
-        <span className="coach-caret">{expanded ? '▾' : '▴'}</span>
-      </button>
+      <div className="coach-head">
+        <button className="coach-toggle" onClick={() => setExpanded(!expanded)}>
+          <span className="coach-avatar">🀄</span>
+          <span className="coach-label">Coach</span>
+          <span className="coach-caret">{expanded ? '▾' : '▴'}</span>
+        </button>
+        {canExplain && (
+          <button
+            className="coach-explain-btn"
+            onClick={() => { store.explainHand(); setExpanded(true); }}
+          >
+            Explain my hand
+          </button>
+        )}
+      </div>
       {expanded ? (
         <div className="coach-feed" ref={feedRef}>
           {msgs.map((m) => (

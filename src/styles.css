@@ -87,7 +87,7 @@ body {
 .opp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; }
 .opp-active .opp-info { background: rgba(233, 180, 76, 0.22); box-shadow: 0 0 0 1px rgba(233, 180, 76, 0.55); border-radius: 6px; padding: 1px 5px; }
 .opp-top { flex-direction: column; }
-.opp-left, .opp-right { width: 52px; flex: 0 0 auto; justify-content: flex-start; }
+.opp-left, .opp-right { width: 60px; flex: 0 0 auto; justify-content: flex-start; }
 .opp-info {
   display: flex; align-items: center; gap: 4px;
   font-size: 11px; opacity: 0.95; flex-wrap: wrap; justify-content: center;
@@ -102,7 +102,7 @@ body {
 .opp-tiles { display: flex; gap: 1px; flex-wrap: nowrap; }
 .opp-tiles-top { flex-direction: row; }
 .opp-tiles-left, .opp-tiles-right { flex-direction: column; max-height: 100%; }
-.opp-tiles-left svg, .opp-tiles-right svg { height: 13px; width: auto; }
+.opp-tiles-left svg, .opp-tiles-right svg { height: 15px; width: auto; }
 .opp-melds { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; max-width: 100%; }
 
 /* centre area */
@@ -263,13 +263,26 @@ body {
   backdrop-filter: blur(6px);
   border-top: 1px solid rgba(255,255,255,0.1);
 }
+.coach-head { display: flex; align-items: center; }
 .coach-toggle {
-  width: 100%;
+  flex: 1 1 auto;
   display: flex; align-items: center; gap: 8px;
   background: none; border: none; color: var(--cream);
   padding: 5px 12px; font-size: 12px; font-weight: 700;
   cursor: pointer;
 }
+.coach-explain-btn {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  padding: 3px 10px;
+  border: 1px solid rgba(233, 180, 76, 0.5);
+  border-radius: 999px;
+  background: rgba(233, 180, 76, 0.15);
+  color: var(--gold);
+  font-size: 11px; font-weight: 700;
+  cursor: pointer;
+}
+.coach-explain-btn:active { background: rgba(233, 180, 76, 0.35); }
 .coach-avatar { font-size: 15px; }
 .coach-caret { margin-left: auto; }
 .coach-bubble {
@@ -348,6 +361,22 @@ body {
 .win-hand { background: var(--felt); border-radius: 10px; padding: 8px; margin: 8px 0; }
 .win-tiles { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
 .win-melds { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 4px; }
+.win-groups { display: flex; flex-wrap: wrap; gap: 8px 10px; justify-content: center; align-items: flex-end; }
+.win-group { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.win-group-tiles {
+  display: flex; gap: 2px; align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 3px 4px; border-radius: 7px;
+}
+.win-group-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  color: rgba(255, 251, 235, 0.9);
+  text-transform: uppercase;
+}
+.win-structure-note {
+  color: #f2ecda; font-size: 12.5px; line-height: 1.4;
+  margin: 8px 2px 0;
+}
 .pay-pos { color: var(--good); font-weight: 700; }
 .pay-neg { color: var(--bad); font-weight: 700; }
 .pay-winner { background: rgba(233,180,76,0.15); }
@@ -394,6 +423,7 @@ body {
   padding: 16px;
 }
 .onboarding-rack { align-items: flex-end; padding-bottom: 120px; }
+.onboarding-coach { align-items: flex-end; padding-bottom: 60px; }
 .onboarding-discards, .onboarding-compass { align-items: center; }
 .onboarding-opponents { align-items: flex-start; padding-top: 90px; }
 .onboarding-card {

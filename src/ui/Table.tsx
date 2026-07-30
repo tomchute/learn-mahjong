@@ -162,13 +162,13 @@ function OpponentZone({ g: store, player, orientation }: { g: GameStore; player:
       </div>
       <div className={`opp-tiles opp-tiles-${orientation}`}>
         {Array.from({ length: n }, (_, i) => (
-          <Tile key={i} back size={orientation === 'top' ? 16 : 14} />
+          <Tile key={i} back size={orientation === 'top' ? 18 : 15} />
         ))}
       </div>
       {(p.melds.length > 0 || p.flowers.length > 0) && (
         <div className="opp-melds">
-          {p.melds.map((m, i) => <MeldView key={i} meld={m} size={16} />)}
-          {p.flowers.map((f) => <Tile key={f.id} kind={f.kind} size={14} className="tile-flower" />)}
+          {p.melds.map((m, i) => <MeldView key={i} meld={m} size={orientation === 'top' ? 20 : 18} />)}
+          {p.flowers.map((f) => <Tile key={f.id} kind={f.kind} size={16} className="tile-flower" />)}
         </div>
       )}
     </div>
