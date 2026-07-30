@@ -1,5 +1,7 @@
 # Learn Mahjong 🀄
 
+**Play it now: https://tomchute.github.io/learn-mahjong/**
+
 A mobile-first web app that teaches you to play **Hong Kong–style mahjong** by
 playing it — a full game from your seat at the table, with a coach that
 explains every rule, every opponent move, and every choice you make.
@@ -46,9 +48,18 @@ preview server running on port 4173).
 ## Deploying
 
 The app is a static site (`dist/` after `npm run build`) and runs anywhere.
-A GitHub Actions workflow (`.github/workflows/deploy.yml`) publishes to
-GitHub Pages on every push (tests must pass first) and enables Pages
-automatically on first run.
+It is live on GitHub Pages at https://tomchute.github.io/learn-mahjong/.
+
+`.github/workflows/deploy.yml` runs on every push: all pushes build and run
+the test suite; **pushes to `main` also deploy to Pages** (the `github-pages`
+environment only permits deployments from the default branch). So the ship
+flow is: develop on a branch → merge to `main` → the site updates itself.
+
+One-time setup notes (already done for this repo, recorded for reuse):
+Pages must be switched on manually once — repo Settings → Pages → Source:
+**GitHub Actions** — because the workflow token may deploy to Pages but not
+create the Pages site. On a private repo, Actions and Pages also require a
+paid plan; this repo is public, where both are free.
 
 ## Playing offline (e.g. on a flight)
 

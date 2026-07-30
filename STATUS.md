@@ -1,6 +1,8 @@
 # STATUS — product & engineering state
 
-Last updated: 2026-07-30 (post adversarial-review fixes, commit `1e6aa3c`).
+Last updated: 2026-07-30 — v1 DEPLOYED and live at
+https://tomchute.github.io/learn-mahjong/ (repo public, Pages via Actions
+from `main`).
 
 ## Product state: v1 complete ✅
 
@@ -107,9 +109,12 @@ verified headless with the network cut:
 ## How to pick this up in a fresh session
 
 1. Read `CLAUDE.md` (auto-loaded), this file, and `RULES.md`.
-2. `git log --oneline` — 4 substantive commits tell the build story.
+2. `git log --oneline` tells the build story (engine → UI → docs → review
+   fixes → offline/PWA → deployment).
 3. `npm install && npm test` to confirm green, then `npm run dev`.
 4. For UI work: build + preview + `node scripts/playtest.mjs`, and Read the
    screenshots in `shots/` — don't trust layout changes without looking.
 5. Engine changes: extend `tests/property.test.ts`; the brute-force
    references there are the ground truth for shanten/win logic.
+6. To ship: merge the working branch to `main` and push — CI deploys to
+   Pages automatically (standing owner permission for deployment merges).

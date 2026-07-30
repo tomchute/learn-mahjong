@@ -20,6 +20,18 @@ node scripts/playtest.mjs   # headless Playwright drive-through (needs :4173 up)
 
 Branch: work on `claude/mahjong-learning-app-mdiiej` unless told otherwise.
 
+## Shipping
+
+The site is LIVE at https://tomchute.github.io/learn-mahjong/ (public repo).
+CI (`.github/workflows/deploy.yml`): every push builds + tests; only pushes
+to `main` deploy — the auto-created `github-pages` environment rejects
+deploys from other branches (its deploy job is also `if:`-gated to main so
+branch pushes stay green). Ship flow: finish work on the working branch,
+then merge to `main` and push — the owner granted standing permission for
+deployment merges to main (2026-07-30). Don't touch Pages settings: the
+Source: GitHub Actions switch was a one-time manual step (workflow tokens
+cannot create a Pages site, only deploy to one).
+
 ## Architecture
 
 - `src/engine/` — pure TS, no React imports. Deterministic given a seed
@@ -69,6 +81,19 @@ Branch: work on `claude/mahjong-learning-app-mdiiej` unless told otherwise.
   stays `hand-end` so the result screen shows; `proceed()` finishes).
 - Flower/gong replacement draws come from the BACK of the wall
   (`wall.drawBack`); normal draws from the front.
+
+## Offline / PWA (don't break these)
+
+- `vite.config.ts` generates `dist/sw.js` at build: precaches all built
+  files, content-hashed cache name. Asset matching needs `ignoreVary: true`
+  (Pages sends `Vary: Origin`, which otherwise breaks module-script cache
+  hits — this was a real production-class bug). Navigations are
+  network-first with a 3s timeout for captive portals.
+- `npm run build` also emits `learn-mahjong-offline.html` (single file,
+  everything inlined, works from `file://`) into dist/ AND the repo root —
+  the root copy is committed on purpose; don't gitignore it.
+- Any new static asset must end up in dist/ to be precached; verify offline
+  behavior if you touch the build (load site, kill network, reload).
 
 ## Store/UI contracts
 
