@@ -60,7 +60,10 @@ export function HandEndModal({ store }: { store: GameStore }) {
                 ))}
                 <tr className="fan-total-row">
                   <td>Total {r.score!.rawFan > r.score!.fan ? `(capped at limit)` : ''}</td>
-                  <td className="fan-cell">{r.score!.fan} fan = {r.score!.payout} {r.score!.payout === 1 ? 'chip' : 'chips'}</td>
+                  <td className="fan-cell">
+                    {r.score!.fan} fan = {r.score!.payout} {r.score!.payout === 1 ? 'chip' : 'chips'}
+                    {r.from === null ? ' from each player' : ''}
+                  </td>
                 </tr>
               </tbody>
             </table>

@@ -40,7 +40,15 @@ export const GUIDE: GuideSection[] = [
       'PONG 碰: take the discard to complete 3 matching tiles — from ANY player. This interrupts the turn order; play continues to your right afterwards.',
       'GONG 槓: take the discard to complete 4 matching tiles — from any player. You draw a replacement tile from the back of the wall, and it earns a fan.',
       'WIN 食: if the discard completes your whole hand, claim it and win! Winning beats every other claim.',
+      'Claim priority: WIN beats pong/gong, and pong/gong beat seung. If you ask for a seung and another player pongs the same tile, their claim wins — the coach will tell you when that happens.',
       'Claimed sets are placed face up beside your hand. They still count toward your 4 sets, but your hand is no longer "concealed" (concealed hands earn a bonus fan).',
+    ],
+  },
+  {
+    title: 'Gongs from your own hand',
+    paragraphs: [
+      'If you hold all four of a tile, you can declare a CONCEALED gong on your turn: the four tiles are set aside (shown face down) and you draw a replacement from the back of the wall. It keeps your hand concealed and earns a fan.',
+      'If you drew the 4th tile matching a pong you already claimed, you can ADD it to that pong (an added gong) — but beware: if another player needs that exact tile to win, they can ROB your gong and take the win.',
     ],
   },
   {
@@ -55,7 +63,7 @@ export const GUIDE: GuideSection[] = [
     paragraphs: [
       'Winning hands score fan (番). Payouts double with every fan: 1 fan = 2 chips, 3 fan = 8, 10 fan = 1024… capped at the 13-fan limit. A "chicken hand" (gai wu 鸡糊 — mixed runs and triplets with no pattern) scores 0 fan and wins just 1 chip.',
       'If you win from a discard, only the discarder pays you. If you win by self-draw, all three opponents pay — and self-draw itself is worth a fan.',
-      'A full match is 4 rounds — East, South, West, North. The deal passes to the right whenever the dealer doesn\'t win; when everyone has dealt, the round wind changes. That makes 16 hands minimum. Highest chips at the end wins the match!',
+      'A full match is 4 rounds — East, South, West, North. The deal passes to the right whenever the dealer neither wins nor the hand ends in a draw (the dealer keeps the deal in both of those cases); when everyone has dealt, the round wind changes. That makes 16 hands minimum. Highest chips at the end wins the match!',
     ],
   },
   {
@@ -99,7 +107,7 @@ export const ONBOARDING: OnboardingStep[] = [
   },
   {
     id: 'go',
-    text: 'When it\'s your turn, tap a tile to select it, then tap again to discard. Good luck — sik wu! 食糊',
+    text: 'When it\'s your turn, tap a tile to select it, then tap again to discard. Your newly drawn tile glows and sits slightly apart on the right. Good luck — sik wu! 食糊',
     anchor: 'rack',
   },
 ];

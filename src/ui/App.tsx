@@ -10,6 +10,20 @@ import { StartScreen } from './StartScreen';
 import { Onboarding, hasOnboarded } from './Onboarding';
 import { WIND_LABEL } from '../content/names';
 
+/** two-tap confirmation (window.confirm is unreliable in webviews) */
+function NewMatchButton({ onConfirm }: { onConfirm: () => void }) {
+  const [arming, setArming] = useState(false);
+  return arming ? (
+    <button className="btn btn-secondary" onClick={onConfirm}>
+      Abandon match — sure?
+    </button>
+  ) : (
+    <button className="btn btn-secondary" onClick={() => setArming(true)}>
+      New match
+    </button>
+  );
+}
+
 export default function App() {
   const store = useGameStore();
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -72,12 +86,9 @@ export default function App() {
                 <option value="fast">Fast</option>
               </select>
             </label>
-            <button
-              className="btn btn-secondary"
-              onClick={() => { if (confirm('Abandon this match and start a new one?')) { store.startMatch(); setMenuOpen(false); } }}
-            >
-              New match
-            </button>
+            <NewMatchButton
+              onConfirm={() => { store.startMatch(); setMenuOpen(false); }}
+            />
             <button className="btn" onClick={() => setMenuOpen(false)}>Close</button>
           </div>
         </div>

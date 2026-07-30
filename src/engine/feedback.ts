@@ -57,6 +57,20 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
 
   const efficient = after === bestAfter;
 
+  if (before === -1) {
+    // they discarded from a COMPLETE hand — the worst possible mistake
+    return {
+      verdict: 'bad',
+      headline: 'You had a winning hand!',
+      details: [
+        'Your 14 tiles already formed 4 sets and a pair — press WIN 食糊 instead of discarding.',
+        'Keep an eye out: when the WIN button appears, your hand is complete.',
+      ],
+      shantenBefore: before,
+      shantenAfter: after,
+    };
+  }
+
   if (after === 0) {
     const waits = winningTiles(kindsAfter, melds);
     headline = 'You are ready to win! 聽牌';

@@ -15,7 +15,7 @@ export interface TileProps {
   size?: number;
   back?: boolean;
   selected?: boolean;
-  highlight?: 'discard' | 'win' | 'new' | null;
+  highlight?: 'discard' | 'win' | 'new' | 'hint' | null;
   dimmed?: boolean;
   onClick?: () => void;
   className?: string;

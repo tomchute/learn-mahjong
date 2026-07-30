@@ -207,10 +207,10 @@ function scoreDecomp(
     items.push({ name: 'Common hand', cantonese: 'ping wu 平糊', fan: 1, detail: 'Every set is a run of ascending numbers.' });
   }
 
-  if (ctx.concealed) items.push({ name: 'Concealed hand', cantonese: 'mun ching 门前清', fan: 1, detail: 'No sets claimed from discards before winning.' });
+  if (ctx.concealed && !concealedAllPongs) items.push({ name: 'Concealed hand', cantonese: 'mun ching 门前清', fan: 1, detail: 'No sets claimed from discards before winning.' });
   if (ctx.selfDraw) items.push({ name: 'Self draw', cantonese: 'zi mo 自摸', fan: 1, detail: 'Drew the winning tile yourself.' });
-  if (ctx.robbingGong) items.push({ name: 'Robbing the gong', cantonese: 'cheung gong 抢降', fan: 1, detail: 'Won on a tile someone added to a gong.' });
-  if (ctx.afterGong && !ctx.afterDoubleGong) items.push({ name: 'Win after gong', cantonese: 'gong seung fa 降上自摸', fan: 1, detail: 'Won on the replacement tile after a gong.' });
+  if (ctx.robbingGong) items.push({ name: 'Robbing the gong', cantonese: 'cheung gong 搶槓', fan: 1, detail: 'Won on a tile someone added to a gong.' });
+  if (ctx.afterGong && !ctx.afterDoubleGong) items.push({ name: 'Win after gong', cantonese: 'gong seung zi mo 槓上自摸', fan: 1, detail: 'Won on the replacement tile after a gong.' });
   if (ctx.lastTile) items.push({ name: 'Last tile win', cantonese: 'hoi dai lao yuet 海底捞月', fan: 1, detail: 'Won on the very last tile of the wall.' });
 
   // Flowers
@@ -228,7 +228,13 @@ function scoreDecomp(
     if (groupB === 4) items.push({ name: 'Full flower set', cantonese: 'yut toi fa 一台花', fan: 2, detail: 'All four seasons of one kind.' });
   }
 
-  let rawFan = items.reduce((a, i) => a + i.fan, 0);
+  const rawFan = items.reduce((a, i) => a + i.fan, 0);
+  if (rawFan === 0) {
+    items.push({
+      name: 'Chicken hand', cantonese: 'gai wu 鸡糊', fan: 0,
+      detail: 'A win with no scoring pattern — mixed runs and triplets across suits. It still wins, but only the base 1 chip.',
+    });
+  }
   const fan = Math.min(rawFan, LIMIT_FAN);
   return {
     fan, rawFan, items,

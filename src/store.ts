@@ -2,6 +2,7 @@ import { useSyncExternalStore, useRef, useCallback, useEffect } from 'react';
 import { Game, GameEvent, ChowOption } from './engine/game';
 import { attachAi } from './engine/ai';
 import { evaluateDiscard, DiscardFeedback, suggestDiscard, Hint, describeShanten } from './engine/feedback';
+import { shanten as shantenFn } from './engine/hand';
 import { pickRandomSeed } from './engine/rng';
 import { Tile, TileKind } from './engine/types';
 import { tileName } from './content/names';
@@ -96,7 +97,10 @@ export class GameStore {
     this.hint = null;
     this.started = true;
     this.game.startHand();
-    this.say('info', `New match! You are ${seatLabel(this.game.seatWind(0))}. The dealer starts — build 4 sets and a pair.`);
+    const youDeal = this.game.dealer === 0;
+    this.say('info',
+      `New match! You are ${seatLabel(this.game.seatWind(0))}${youDeal ? ' — and the dealer, so you start' : ''}. Build 4 sets and a pair.`,
+      youDeal ? ['You begin with 14 tiles: discard one to start the hand (tap it twice).'] : undefined);
     this.narrateNewEvents();
     this.ensureTicker();
     this.bump();
@@ -137,7 +141,34 @@ export class GameStore {
   }
 
   humanClaim(claim: 'win' | 'pong' | 'gong' | 'chow' | 'pass', chow?: ChowOption) {
-    this.game.humanClaim(claim, chow);
+    const g = this.game;
+    const opts = g.humanClaimOptions;
+    const wasConcealed = g.players[0].melds.length === 0;
+    const evCount = g.events.length;
+    g.humanClaim(claim, chow);
+
+    if (claim === 'pass' && opts?.win) {
+      this.say('bad', 'You passed on a WINNING tile!', [
+        'That tile completed your hand — claiming it would have won the hand. Winning beats every other option.',
+      ]);
+    } else if (claim !== 'pass' && claim !== 'win') {
+      // did the human actually get the meld, or were they outranked?
+      const claimEv = g.events.slice(evCount).find((e) => e.type === 'claim');
+      if (claimEv && claimEv.type === 'claim' && claimEv.player !== 0) {
+        this.say('info', `Your ${claim === 'chow' ? 'seung' : claim} was outranked.`, [
+          'Claim priority: win beats pong/gong, and pong/gong beat seung. When two players want the same discard, the stronger claim takes it.',
+        ]);
+      } else if (claimEv && claimEv.type === 'claim' && claimEv.player === 0) {
+        const details: string[] = [];
+        if (wasConcealed) details.push('Your hand is now open — you give up the concealed-hand fan, and opponents can see part of your plan.');
+        // after a claim the hand is 3n+2: measure the best shanten after discarding
+        const sh = bestShantenAfterDiscard(g);
+        if (sh !== null) {
+          details.push(sh <= 0 ? 'Discard carefully — you can be ready to win!' : `After your discard you'll be ${describeShanten(sh)}.`);
+        }
+        this.say('ok', `You claimed the ${claim === 'chow' ? 'seung' : claim}. Now discard a tile.`, details);
+      }
+    }
     this.narrateNewEvents();
     this.bump();
   }
@@ -184,6 +215,11 @@ export class GameStore {
     this.bump();
   }
 
+  /** re-render on viewport changes (rack tile sizing reads window width) */
+  notifyResize() {
+    this.bump();
+  }
+
   // ------------------------------------------------------------------
   // Coach narration
   // ------------------------------------------------------------------
@@ -213,6 +249,11 @@ export class GameStore {
         this.sayPrompt('claim', 'action', `You can claim that tile: ${opts.join(', ')} — or pass.`);
         changed = true;
       }
+    }
+    // symmetric prompt for a self-drawn win — beginners miss the button
+    if (g.phase === 'awaiting-discard' && g.turn === 0 && g.canSelfWin(0) && !this.lastPromptWas('selfwin')) {
+      this.sayPrompt('selfwin', 'action', 'Your hand is complete — press WIN 食糊 to take the self-draw win!');
+      changed = true;
     }
     if (changed) this.bump();
   }
@@ -281,6 +322,24 @@ function seatLabel(w: string): string {
   return { E: 'East 東', S: 'South 南', W: 'West 西', N: 'North 北' }[w] ?? w;
 }
 
+/** Best achievable shanten over all discards from a 3n+2 hand. */
+function bestShantenAfterDiscard(g: Game): number | null {
+  const p = g.players[0];
+  if (p.concealed.length % 3 !== 2) return null;
+  const kinds = p.concealed.map((t) => t.kind);
+  let best = Infinity;
+  const tried = new Set<string>();
+  for (const k of kinds) {
+    if (tried.has(k)) continue;
+    tried.add(k);
+    const rest = kinds.slice();
+    rest.splice(rest.indexOf(k), 1);
+    const sh = shantenFn(rest, p.melds.length);
+    if (sh < best) best = sh;
+  }
+  return Number.isFinite(best) ? best : null;
+}
+
 // ------------------------------------------------------------------
 // React binding
 // ------------------------------------------------------------------
@@ -292,9 +351,14 @@ export function getStore(): GameStore {
 
 export function useGameStore(): GameStore {
   const store = getStore();
-  useSyncExternalStore(store.subscribe, () => store.version + store.game.version);
+  // snapshot must be monotonic: store.version alone (every mutation path calls
+  // bump()); summing in game.version could collide across new-game resets.
+  useSyncExternalStore(store.subscribe, () => store.version);
   useEffect(() => {
     store.ensureTicker();
+    const onResize = () => store.notifyResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, [store]);
   return store;
 }

@@ -11,11 +11,14 @@ export function CoachPanel({ store }: { store: GameStore }) {
   const msgs = store.coach;
   const latest = msgs[msgs.length - 1];
 
+  // key on the latest message ID, not length — the feed is capped at 60
+  // messages, so length stops changing but IDs keep growing
+  const latestId = msgs.length ? msgs[msgs.length - 1].id : 0;
   useEffect(() => {
     if (expanded && feedRef.current) {
       feedRef.current.scrollTop = feedRef.current.scrollHeight;
     }
-  }, [expanded, msgs.length]);
+  }, [expanded, latestId]);
 
   if (!latest) return null;
 

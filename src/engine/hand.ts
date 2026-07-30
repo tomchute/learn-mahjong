@@ -173,14 +173,22 @@ export function standardShanten(counts: Counts, declaredMelds: number): number {
   const needSets = 4 - declaredMelds;
   let best = 8;
   const c = counts.slice();
-  const dfs = (i0: number, sets: number, partials: number, hasPair: boolean) => {
+  // A partial set only helps if its completing tile can still be drawn: we
+  // hold orig[k] of kind k, so 4 - orig[k] copies remain outside the hand.
+  const orig = counts.slice();
+  const outside = (k: number) => k >= 0 && k < 34 && orig[k] <= 3;
+
+  const dfs = (i0: number, sets: number, partials: number, hasPair: boolean, pairableFloater: boolean) => {
     let i = i0;
     while (i < 34 && c[i] === 0) i++;
-    const sCap = Math.min(sets, needSets);
-    const pCap = Math.min(partials, Math.max(0, needSets - sCap));
-    const current = (needSets - sCap) * 2 - pCap - (hasPair ? 1 : 0);
     if (i >= 34) {
-      if (current < best) best = current;
+      const sCap = Math.min(sets, needSets);
+      const pCap = Math.min(partials, Math.max(0, needSets - sCap));
+      let shanten = (needSets - sCap) * 2 - pCap - (hasPair ? 1 : 0);
+      // Without eyes, the final pair must come from pairing a spare tile —
+      // impossible if every spare is a 4th copy (no 5th tile exists).
+      if (!hasPair && !pairableFloater) shanten += 1;
+      if (shanten < best) best = shanten;
       return;
     }
     const kind = ALL_KINDS[i];
@@ -188,43 +196,54 @@ export function standardShanten(counts: Counts, declaredMelds: number): number {
     const r = suit ? rankOf(kind) : 0;
 
     if (c[i] >= 3) {
-      c[i] -= 3; dfs(i, sets + 1, partials, hasPair); c[i] += 3;
+      c[i] -= 3; dfs(i, sets + 1, partials, hasPair, pairableFloater); c[i] += 3;
     }
     if (suit && r <= 7 && c[i + 1] > 0 && c[i + 2] > 0) {
       c[i]--; c[i + 1]--; c[i + 2]--;
-      dfs(i, sets + 1, partials, hasPair);
+      dfs(i, sets + 1, partials, hasPair, pairableFloater);
       c[i]++; c[i + 1]++; c[i + 2]++;
     }
     if (c[i] >= 2) {
       c[i] -= 2;
-      if (!hasPair) dfs(i, sets, partials, true);
-      dfs(i, sets, partials + 1, hasPair);
+      if (!hasPair) dfs(i, sets, partials, true, pairableFloater);
+      // pair as a partial pong needs a 3rd copy from outside
+      if (outside(i)) dfs(i, sets, partials + 1, hasPair, pairableFloater);
       c[i] += 2;
     }
+    // partial chow (i, i+1): completes with i-1 or i+2 from outside
     if (suit && r <= 8 && c[i + 1] > 0) {
-      c[i]--; c[i + 1]--; dfs(i, sets, partials + 1, hasPair); c[i]++; c[i + 1]++;
+      const completable = (r >= 2 && outside(i - 1)) || (r <= 7 && outside(i + 2));
+      if (completable) {
+        c[i]--; c[i + 1]--; dfs(i, sets, partials + 1, hasPair, pairableFloater); c[i]++; c[i + 1]++;
+      }
     }
-    if (suit && r <= 7 && c[i + 2] > 0) {
-      c[i]--; c[i + 2]--; dfs(i, sets, partials + 1, hasPair); c[i]++; c[i + 2]++;
+    // partial chow (i, i+2): completes only with the middle tile
+    if (suit && r <= 7 && c[i + 2] > 0 && outside(i + 1)) {
+      c[i]--; c[i + 2]--; dfs(i, sets, partials + 1, hasPair, pairableFloater); c[i]++; c[i + 2]++;
     }
     // treat c[i] as floaters: drop them all and move on
     const n = c[i];
     c[i] = 0;
-    dfs(i + 1, sets, partials, hasPair);
+    dfs(i + 1, sets, partials, hasPair, pairableFloater || outside(i));
     c[i] = n;
   };
-  dfs(0, 0, 0, false);
+  dfs(0, 0, 0, false, false);
   return best;
 }
 
 export function sevenPairsShanten(counts: Counts): number {
-  let pairs = 0;
-  let kinds = 0;
+  // Consistent with sevenPairsWin: four of a kind counts as two pairs.
+  // Each kind offers up to two "pair slots" (2 tiles each); a slot holding a
+  // single tile completes via an outside draw (always available: holding 1 or
+  // 3 of a kind leaves copies outside). Cover 7 slots as fully as possible.
+  const slots: number[] = [];
   for (let i = 0; i < 34; i++) {
-    if (counts[i] > 0) kinds++;
-    if (counts[i] >= 2) pairs++;
+    slots.push(Math.min(2, counts[i]));
+    slots.push(Math.min(2, Math.max(0, counts[i] - 2)));
   }
-  return 6 - pairs + Math.max(0, 7 - kinds);
+  slots.sort((a, b) => b - a);
+  const coverage = slots.slice(0, 7).reduce((a, b) => a + b, 0);
+  return 13 - coverage;
 }
 
 export function thirteenOrphansShanten(counts: Counts): number {

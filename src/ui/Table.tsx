@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameStore } from '../store';
 import { Tile } from './Tile';
 import { Tile as TileT, Meld } from '../engine/types';
@@ -16,6 +16,12 @@ import { ClaimBar } from './ClaimBar';
 export function Table({ store }: { store: GameStore }) {
   const g = store.game;
   const [selected, setSelected] = useState<number | null>(null);
+
+  // clear any raised selection whenever the game state moves on (a stale
+  // selection would turn a later single tap into an instant discard)
+  useEffect(() => {
+    setSelected(null);
+  }, [g.version]);
 
   const myTurn = g.phase === 'awaiting-discard' && g.turn === 0;
   const me = g.players[0];
@@ -66,40 +72,40 @@ export function Table({ store }: { store: GameStore }) {
         )}
       </div>
 
-      {/* Status strip */}
-      <div className="status-strip">
-        {myShanten === 0 && myWaits.length > 0 && (
-          <span className="ready-badge">READY 聽 — win on: {myWaits.map(tileName).join(' · ')}</span>
-        )}
-        {myTurn && myShanten !== 0 && <span className="turn-badge">Your turn — tap a tile twice to discard</span>}
-        {!myTurn && g.phase === 'awaiting-discard' && (
-          <span className="waiting-badge">{g.players[g.turn].name} is thinking…</span>
+      {/* Status strip + actions share one stable-height row to avoid reflow */}
+      <div className="controls-row">
+        <div className="status-strip">
+          {myShanten === 0 && myWaits.length > 0 && (
+            <span className="ready-badge">READY 聽 — win on: {myWaits.map(tileName).join(' · ')}</span>
+          )}
+          {myTurn && myShanten !== 0 && <span className="turn-badge">Your turn — tap a tile twice to discard</span>}
+          {!myTurn && g.phase === 'awaiting-discard' && (
+            <span className="waiting-badge">{g.players[g.turn].name} is thinking…</span>
+          )}
+        </div>
+        {myTurn && (
+          <div className="action-bar">
+            {canWin && (
+              <button className="btn btn-win" onClick={() => store.humanSelfWin()}>WIN 食糊 (self-draw)</button>
+            )}
+            {concealedGongs.map((k) => (
+              <button key={k} className="btn btn-claim" onClick={() => store.humanGong(k, false)}>
+                Gong {tileName(k)} (concealed)
+              </button>
+            ))}
+            {addedGongs.map((k) => (
+              <button key={`a${k}`} className="btn btn-claim" onClick={() => store.humanGong(k, true)}>
+                Gong {tileName(k)} (add to pong)
+              </button>
+            ))}
+            {store.settings.coachEnabled && (
+              <button className="btn btn-hint" onClick={() => store.askHint()}>Hint</button>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Action bar: win/gong/hint on your discard turn */}
-      {myTurn && (canWin || concealedGongs.length > 0 || addedGongs.length > 0 || store.settings.coachEnabled) && (
-        <div className="action-bar">
-          {canWin && (
-            <button className="btn btn-win" onClick={() => store.humanSelfWin()}>WIN 食糊 (self-draw)</button>
-          )}
-          {concealedGongs.map((k) => (
-            <button key={k} className="btn btn-claim" onClick={() => store.humanGong(k, false)}>
-              Gong {tileName(k)} (concealed)
-            </button>
-          ))}
-          {addedGongs.map((k) => (
-            <button key={`a${k}`} className="btn btn-claim" onClick={() => store.humanGong(k, true)}>
-              Gong {tileName(k)} (add to pong)
-            </button>
-          ))}
-          {store.settings.coachEnabled && (
-            <button className="btn btn-hint" onClick={() => store.askHint()}>Hint</button>
-          )}
-        </div>
-      )}
-
-      {/* Claim bar when a discard can be claimed */}
+      {/* Claim bar overlays the table when a discard can be claimed */}
       {g.phase === 'awaiting-claims' && g.humanClaimOptions && <ClaimBar store={store} />}
 
       {/* Your rack */}
@@ -107,13 +113,22 @@ export function Table({ store }: { store: GameStore }) {
         {me.concealed.map((t) => {
           const isDrawn = g.drawnTile?.id === t.id && myTurn;
           return (
-            <div key={t.id} className={`rack-slot ${isDrawn ? 'rack-drawn' : ''}`}>
+            <div
+              key={t.id}
+              className={`rack-slot ${isDrawn ? 'rack-drawn' : ''} ${myTurn ? 'rack-slot-tappable' : ''}`}
+              onClick={() => tapTile(t)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapTile(t); }
+              }}
+              tabIndex={myTurn ? 0 : -1}
+              role="button"
+              aria-label={`Tile ${t.kind}${selected === t.id ? ', selected — activate again to discard' : ''}`}
+            >
               <Tile
                 kind={t.kind}
                 size={rackTileSize(me.concealed.length)}
                 selected={selected === t.id}
-                highlight={isDrawn ? 'new' : store.hint?.tileId === t.id ? 'discard' : null}
-                onClick={() => tapTile(t)}
+                highlight={isDrawn ? 'new' : store.hint?.tileId === t.id ? 'hint' : null}
               />
             </div>
           );
@@ -124,9 +139,11 @@ export function Table({ store }: { store: GameStore }) {
 }
 
 function rackTileSize(n: number): number {
-  // fit up to 14 tiles across a small phone; the drawn tile gets a gap
+  // fit up to 14 tiles + inter-tile gaps + the drawn-tile margin on any phone
+  const count = Math.max(13, n);
   const vw = Math.min(window.innerWidth, 560);
-  return Math.floor(Math.min(44, (vw - 20 - 8) / Math.max(13, n)));
+  const available = vw - 8 /* rack padding */ - (count - 1) * 2 /* gaps */ - 10 /* drawn margin */;
+  return Math.floor(Math.min(44, available / count));
 }
 
 // ------------------------------------------------------------------

@@ -170,6 +170,15 @@ export class Game {
     this.turn = this.dealer;
     this.phase = 'awaiting-discard';
     this.drawnTile = null;
+
+    // all eight flowers in the opening deal is an instant win too
+    for (let i = 0; i < 4; i++) {
+      const p = (this.dealer + i) % 4;
+      if (this.players[p].flowers.length === 8) {
+        this.finishWithEightFlowers(p);
+        return;
+      }
+    }
     this.version++;
   }
 
@@ -197,6 +206,12 @@ export class Game {
   /** Can `player` declare a self-draw win right now (it's their discard turn)? */
   canSelfWin(player: number): boolean {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return false;
+    // A self-draw win requires an actual draw (or the dealer's opening 14).
+    // Without this, claiming a pong could be followed by an instant "self
+    // draw" win, milking triple payment out of a discard-completed hand.
+    const openingHand = player === this.dealer && this.discardsThisHand === 0 &&
+      this.players[player].melds.length === 0;
+    if (this.drawnTile === null && !openingHand) return false;
     return isWinningHand(this.concealedKinds(player), this.players[player].melds.length);
   }
 
@@ -474,44 +489,49 @@ export class Game {
     const [tile] = p.concealed.splice(ti, 1);
     this.emit({ type: 'gong-added', player, kind });
 
-    // robbing the gong: any other player who can win on this tile may rob it.
+    // Robbing the gong: players who can win on this tile, in seat order after
+    // the declarer. The nearest AI robs immediately; if the human is nearest
+    // they get a prompt, and declining falls through to later eligible winners.
+    const robbers: number[] = [];
     for (let i = 1; i < 4; i++) {
       const other = (player + i) % 4;
       const o = this.players[other];
-      if (isWinningHand([...this.concealedKinds(other), kind], o.melds.length)) {
-        // AI always robs; human is asked via UI (handled by caller checking robbable)
-        if (!o.isHuman) {
-          this.finishWithWin(other, player, tile, { selfDraw: false, robbing: true });
-          return;
-        } else {
-          this.robbable = { player, kind, tile };
-          this.phase = 'awaiting-claims';
-          this.humanClaimOptions = { win: true, pong: false, gong: false, chows: [] };
-          this.lastDiscard = { tile, from: player };
-          // stash the tile out of the meld until resolved
-          this.pendingAddedGong = { meld, tile, player };
-          this.version++;
-          return;
-        }
+      if (isWinningHand([...this.concealedKinds(other), kind], o.melds.length)) robbers.push(other);
+    }
+    if (robbers.length > 0) {
+      if (!this.players[robbers[0]].isHuman) {
+        this.finishWithWin(robbers[0], player, tile, { selfDraw: false, robbing: true });
+        return;
       }
+      this.robbable = { player, kind, tile };
+      this.phase = 'awaiting-claims';
+      this.humanClaimOptions = { win: true, pong: false, gong: false, chows: [] };
+      this.lastDiscard = { tile, from: player };
+      // stash the tile out of the meld until resolved
+      this.pendingAddedGong = { meld, tile, player, laterWinners: robbers.slice(1) };
+      this.version++;
+      return;
     }
     meld.type = 'gong';
     meld.tiles.push(tile);
     this.drawReplacement(player);
   }
 
-  private pendingAddedGong: { meld: Meld; tile: Tile; player: number } | null = null;
+  private pendingAddedGong: { meld: Meld; tile: Tile; player: number; laterWinners: number[] } | null = null;
 
   /** Human decision on robbing a gong. */
   resolveRob(rob: boolean) {
     if (!this.pendingAddedGong) return;
-    const { meld, tile, player } = this.pendingAddedGong;
+    const { meld, tile, player, laterWinners } = this.pendingAddedGong;
     this.pendingAddedGong = null;
     this.robbable = null;
     this.humanClaimOptions = null;
     this.lastDiscard = null;
     if (rob) {
       this.finishWithWin(0, player, tile, { selfDraw: false, robbing: true });
+    } else if (laterWinners.length > 0) {
+      // the human declined, but a later eligible winner still robs the gong
+      this.finishWithWin(laterWinners[0], player, tile, { selfDraw: false, robbing: true });
     } else {
       meld.type = 'gong';
       meld.tiles.push(tile);
