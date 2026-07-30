@@ -1,0 +1,12 @@
+name: Actions smoke test
+
+# Minimal workflow to verify GitHub Actions can run at all on this repo.
+# Safe to delete once deploys are green.
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "actions are alive"
