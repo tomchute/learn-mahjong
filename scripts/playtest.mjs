@@ -28,7 +28,18 @@ await page.locator('.modal-head .icon-btn').click();
 
 // start game
 await page.getByText('Sit down & play').click();
-await page.waitForTimeout(1200);
+await page.waitForTimeout(800);
+
+// click through first-time onboarding if present
+for (let i = 0; i < 8; i++) {
+  const ob = page.locator('.onboarding');
+  if (!(await ob.count())) break;
+  if (i === 0) await page.screenshot({ path: `${SHOTS}/05a-onboarding.png` });
+  const next = page.locator('.onboarding .btn-primary');
+  await next.click();
+  await page.waitForTimeout(250);
+}
+await page.waitForTimeout(600);
 await page.screenshot({ path: `${SHOTS}/05-table-initial.png` });
 
 // Let the game run; interact when it's our turn or a claim is offered.
