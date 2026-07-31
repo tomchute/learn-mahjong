@@ -53,14 +53,29 @@ export function TutorialModal({ onClose }: { onClose: () => void }) {
                 </thead>
                 <tbody>
                   {SCORING_TABLE.map((r, i) => (
-                    <tr key={i}>
-                      <td className="fan-cell">{r.fan}</td>
-                      <td>
-                        <strong>{r.name}</strong>
-                        {r.cantonese && <div className="canto">{r.cantonese}</div>}
-                      </td>
-                      <td>{r.note}</td>
-                    </tr>
+                    <React.Fragment key={i}>
+                      <tr className={r.example ? 'score-row-with-example' : ''}>
+                        <td className="fan-cell">{r.fan}</td>
+                        <td>
+                          <strong>{r.name}</strong>
+                          {r.cantonese && <div className="canto">{r.cantonese}</div>}
+                        </td>
+                        <td>{r.note}</td>
+                      </tr>
+                      {r.example && (
+                        <tr className="score-example-row">
+                          <td colSpan={3}>
+                            <div className="score-example">
+                              {r.example.map((group, gi) => (
+                                <span key={gi} className="score-example-group">
+                                  {group.map((k, ti) => <Tile key={ti} kind={k} size={19} />)}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

@@ -369,6 +369,15 @@ body {
 .fan-detail { font-size: 11px; opacity: 0.75; }
 .fan-total-row td { font-weight: 700; border-top: 2px solid var(--felt); }
 .payout-note { background: rgba(53,101,77,0.1); border-radius: 8px; padding: 8px; font-size: 12.5px; }
+.score-row-with-example td { border-bottom: none; }
+.score-example-row td { padding: 0 4px 8px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+.score-example {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  background: var(--felt);
+  border-radius: 8px;
+  padding: 5px 6px;
+}
+.score-example-group { display: inline-flex; gap: 1px; flex-wrap: wrap; }
 
 .hand-end-modal .fan-total { color: var(--red); font-size: 16px; margin-left: 6px; }
 .win-how { font-style: italic; }
