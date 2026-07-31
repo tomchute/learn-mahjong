@@ -84,6 +84,22 @@ verified headless with the network cut:
 - `window.innerWidth` read in `rackTileSize` is render-time (resize listener
   bumps the store, so it corrects on resize).
 
+## Shipped since v1
+
+- **Strategic coach** (2026-07-30, owner request): `src/engine/insight.ts` —
+  opponent reads layered as visible-evidence-then-peek (tap any opponent's
+  name plate → OpponentReadModal), one-shot tactics alerts (opponent shape
+  becomes readable / opponent becomes ready / you become ready with wait
+  widths + fan per wait), red danger dots on rack tiles when an opponent is
+  ready, defense credit in discard feedback, and a Strategy tutorial tab
+  (reading opponents / defence & folding / attack & value). Key honesty
+  rule: only honours with all 4 copies visible are "provably safe" — suited
+  tiles can always be chow-waited (see provablySafeKinds).
+- **"Explain my hand"** (`src/engine/explain.ts`) — structure/progress/fan
+  explanation of the player's own hand, button next to the coach header.
+- Tutorial: pair-claim clarification (eyes can't be claimed except as the
+  winning tile).
+
 ## Refinement backlog (prioritized, none started)
 
 1. **Match persistence/resume** — serialize seed + action log to
@@ -93,9 +109,10 @@ verified headless with the network cut:
    describes.
 3. **Practice modes** — "claim trainer" (drills on when to pong/seung),
    "score this hand" quiz using the existing scoring engine, and a
-   "defense basics" lesson once AI defense exists.
-4. **AI defense** — fold when an opponent is visibly ready (their melds +
-   discards); teach the concept through coach commentary.
+   "defense basics" drill using insight.ts danger/safe logic.
+4. **AI defense** — opponents currently never fold; making them defend
+   (using the same insight reads) would make the defense lessons land
+   harder and the game more realistic.
 5. **Sound** (toggle exists in settings, `soundEnabled` is stored but unused
    — wire WebAudio clicks/claims/win jingle).
 6. **Coach depth setting** — beginner/intermediate verbosity; currently one

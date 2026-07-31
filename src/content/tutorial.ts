@@ -40,6 +40,7 @@ export const GUIDE: GuideSection[] = [
       'PONG 碰: take the discard to complete 3 matching tiles — from ANY player. This interrupts the turn order; play continues to your right afterwards.',
       'GONG 槓: take the discard to complete 4 matching tiles — from any player. You draw a replacement tile from the back of the wall, and it earns a fan.',
       'WIN 食: if the discard completes your whole hand, claim it and win! Winning beats every other claim.',
+      'You canNOT claim a discard just to make a pair — your eyes must come from your own draws. The one exception: if the pair is the last thing your hand needs, completing it IS your winning tile, so you claim it as a WIN.',
       'Claim priority: WIN beats pong/gong, and pong/gong beat seung. If you ask for a seung and another player pongs the same tile, their claim wins — the coach will tell you when that happens.',
       'Claimed sets are placed face up beside your hand. They still count toward your 4 sets, but your hand is no longer "concealed" (concealed hands earn a bonus fan).',
     ],
@@ -73,6 +74,37 @@ export const GUIDE: GuideSection[] = [
       'Seat winds matter: a pong of YOUR seat wind scores a fan (other winds score nothing). Your seat flower (matching your seat number from the dealer) scores a fan; no flowers at all also scores a fan.',
       'Honour eyes: if your pair is winds or dragons, the hand cannot count the "common hand" (all runs) fan — a plain hand with honour eyes scores 0.',
       'Collecting all 8 flowers is an instant 8-fan win, even with an incomplete hand.',
+    ],
+  },
+];
+
+/** Strategy lessons: reading opponents, defence, attack. Shown in their own tab. */
+export const STRATEGY: GuideSection[] = [
+  {
+    title: 'Reading opponents',
+    paragraphs: [
+      'You can\'t see their hands — but three things are public: what they CLAIM (every claimed set is face up), what they DISCARD (tiles they decided they don\'t need), and what they never discard.',
+      'Two exposed sets in one suit, and no discards of that suit? They\'re likely building a flush — every tile of that suit you discard is a gift. Only triplet claims? They\'re chasing all pongs. Dragon or seat-wind pongs on the table mean their hand already has fan — feeding them is expensive.',
+      'Tap any opponent\'s name during play for the coach\'s read: the visible evidence first, then the coach\'s peek so you can check your own reasoning.',
+    ],
+  },
+  {
+    title: 'Defence: when and how to fold',
+    paragraphs: [
+      'The biggest chip losses come from DISCARDING a winner\'s tile — you alone pay. When someone looks ready and your own hand is 2+ tiles away, stop pushing and start defending: winning this hand is no longer your best outcome; not paying is.',
+      'What\'s safe? Only one thing is provable at a real table: an honour tile where all four copies are visible can\'t win for anyone (honours can\'t sit in runs). Everything else is only SAFER: tiles the threatening player has discarded themselves, tiles many copies of which are visible, and terminal tiles (1s and 9s fit fewer runs than a 5 does).',
+      'A suited tile is never fully safe — someone can wait on it for a run while holding none of them. Middle tiles (4-5-6) are the most dangerous tiles in the game: they complete the most runs.',
+      'In this app, when an opponent is ready the coach marks truly dangerous tiles in your rack with a red dot — use it to check your instincts, not to replace them.',
+    ],
+  },
+  {
+    title: 'Attack: building value and waits',
+    paragraphs: [
+      'A wide wait wins more. Waiting on 3-or-6 after 4-5 beats waiting on a single tile: count the copies you can\'t see — the coach shows this count when you\'re ready.',
+      'Cheap and fast, or big and slow? A quick chicken hand wins 1 chip; the same tiles steered toward one suit or all pongs can be worth 8+ chips. Early in the hand, lean toward value; once others claim melds, speed matters more.',
+      'Claiming opens your hand: you gain speed but lose the concealed-hand fan and show everyone your plan. Strong players claim when it completes their shape, not just because they can.',
+      'Self-draw is worth an extra fan AND everyone pays — when you\'re ready with a wide wait, patience often outscores claiming a cheap win... but never pass a win you actually need.',
+      'Watch the seat winds: a pong of YOUR seat wind scores; other winds are worthless to you but may be gold to their seat-holder — holding the 4th copy of a claimed wind is free defence.',
     ],
   },
 ];

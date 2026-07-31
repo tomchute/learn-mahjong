@@ -4,6 +4,9 @@ import { attachAi } from './engine/ai';
 import { evaluateDiscard, DiscardFeedback, suggestDiscard, Hint, describeShanten } from './engine/feedback';
 import { explainMyHand, explainWinStructure, fanSummaryLine } from './engine/explain';
 import { shanten as shantenFn } from './engine/hand';
+import {
+  opponentProfile, dangerTiles, myWaitAnalysis, provablySafeKinds, OpponentProfile,
+} from './engine/insight';
 import { pickRandomSeed } from './engine/rng';
 import { Tile, TileKind } from './engine/types';
 import { tileName } from './content/names';
@@ -69,6 +72,9 @@ export class GameStore {
   settings: Settings = loadSettings();
   /** index into game.events already narrated */
   private narrated = 0;
+  /** per-opponent tactics state already announced this hand */
+  private announced: Record<number, { melds: number; ready: boolean }> = {};
+  private announcedMyReady = false;
   private msgId = 1;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -96,6 +102,8 @@ export class GameStore {
     this.narrated = 0;
     this.lastFeedback = null;
     this.hint = null;
+    this.announced = {};
+    this.announcedMyReady = false;
     this.started = true;
     this.game.startHand();
     const youDeal = this.game.dealer === 0;
@@ -131,11 +139,24 @@ export class GameStore {
     if (g.phase !== 'awaiting-discard' || g.turn !== 0) return;
     this.hint = null;
     const fb = this.settings.coachEnabled ? evaluateDiscard(g, tile) : null;
+    // defense credit: measured BEFORE the discard resolves
+    let defenseNote: string | null = null;
+    if (this.settings.coachEnabled) {
+      const danger = dangerTiles(g);
+      const myShBefore = shantenFn(
+        g.players[0].concealed.filter((t) => t.id !== tile.id).map((t) => t.kind),
+        g.players[0].melds.length,
+      );
+      if (danger.size > 0 && !danger.has(tile.kind) && myShBefore >= 2) {
+        defenseNote = 'Good defensive instinct: an opponent is ready, your hand is far behind, and that tile doesn\'t complete their wait.';
+      }
+    }
     g.discard(tile.id);
     if (fb) {
       this.lastFeedback = fb;
+      const details = defenseNote ? [...fb.details, defenseNote] : fb.details;
       this.say(fb.verdict === 'good' ? 'good' : fb.verdict === 'ok' ? 'ok' : fb.verdict === 'risky' ? 'risky' : 'bad',
-        fb.headline, fb.details);
+        fb.headline, details);
     }
     this.narrateNewEvents();
     this.bump();
@@ -205,6 +226,8 @@ export class GameStore {
     const g = this.game;
     if (g.phase !== 'hand-end') return;
     const willEnd = g.matchWillEnd;
+    this.announced = {};
+    this.announcedMyReady = false;
     g.proceed();
     if (!willEnd) {
       this.say('info', `Hand ${g.handNumber}: ${seatLabel(g.roundWind)} round. You are ${seatLabel(g.seatWind(0))}${g.dealer === 0 ? ' — you deal (14 tiles, discard first)' : ''}.`);
@@ -264,7 +287,83 @@ export class GameStore {
       this.sayPrompt('selfwin', 'action', 'Your hand is complete — press WIN 食糊 to take the self-draw win!');
       changed = true;
     }
+    if (this.settings.coachEnabled && this.tacticsWatch()) changed = true;
     if (changed) this.bump();
+  }
+
+  /**
+   * Tactics commentary: fires once per meaningful state change (an opponent's
+   * hand becomes readable, an opponent becomes ready, you become ready) so it
+   * teaches reads without flooding the feed.
+   */
+  private tacticsWatch(): boolean {
+    const g = this.game;
+    if (g.phase === 'hand-end' || g.phase === 'match-end' || !g.wall) return false;
+    let spoke = false;
+
+    for (let i = 1; i < 4; i++) {
+      const prof = opponentProfile(g, i);
+      const prev = this.announced[i] ?? { melds: 0, ready: false };
+
+      // their shape became readable (2nd exposed set) or changed with new melds
+      if (prof.meldCount >= 2 && prof.meldCount > prev.melds && prof.shape !== 'unclear') {
+        this.say('info', `Reading ${prof.name}: ${shapeName(prof.shape)}?`, [
+          prof.shapeEvidence,
+          prof.visibleFan > 0 ? `They already have ${prof.visibleFan} fan showing on the table.` : 'No fan visible yet — but claims tell you what they value.',
+        ]);
+        spoke = true;
+      }
+
+      // they became ready — the key defensive moment
+      if (prof.ready && !prev.ready) {
+        const details = [
+          prof.shapeEvidence,
+          `Coach's peek 👁: they are waiting on ${prof.waits.map(tileName).join(' / ')} — worth ${prof.potentialFan} fan (${2 ** Math.min(prof.potentialFan, 13)} chips from whoever discards it).`,
+        ];
+        const safe = provablySafeKinds(g);
+        const mySh = g.players[0].concealed.length % 3 === 1 ? g.shantenOf(0) : null;
+        if (mySh !== null && mySh >= 2) {
+          details.push(
+            safe.length > 0
+              ? `Your hand is ${describeShanten(mySh)} — consider defending. Provably safe: ${safe.map(tileName).join(', ')} (all four copies visible, and honours can't sit in runs).`
+              : `Your hand is ${describeShanten(mySh)} — consider defending: tiles they discarded themselves, or ones with most copies visible, are safer.`,
+          );
+        }
+        this.say('risky', `⚠ ${prof.name} looks ready to win.`, details);
+        spoke = true;
+      }
+
+      this.announced[i] = { melds: prof.meldCount, ready: prof.ready };
+    }
+
+    // your own attack picture, once per hand when you first become ready
+    if (!this.announcedMyReady && g.players[0].concealed.length % 3 === 1 && g.shantenOf(0) === 0) {
+      const waits = myWaitAnalysis(g);
+      if (waits.length > 0) {
+        const totalUnseen = waits.reduce((a, w) => a + w.unseen, 0);
+        this.say('good', `You're ready — here's your attack picture.`, [
+          ...waits.map((w) =>
+            `${tileName(w.kind)}: ${w.unseen} unseen ${w.unseen === 1 ? 'copy' : 'copies'} → ${w.fan} fan (${w.payout} chips).`),
+          totalUnseen <= 2
+            ? 'A narrow wait — if it isn\'t coming, reshaping toward a wider wait is often stronger than waiting it out.'
+            : 'A decent wait. Self-drawing adds a fan, and everyone pays — patience can outscore a quick claim.',
+        ]);
+        this.announcedMyReady = true;
+        spoke = true;
+      }
+    }
+    return spoke;
+  }
+
+  /** Danger kinds for the rack UI (only meaningful when an opponent is ready). */
+  getDangerKinds(): Set<TileKind> {
+    if (!this.settings.coachEnabled) return new Set();
+    return new Set(dangerTiles(this.game).keys());
+  }
+
+  /** Full tactics read of one opponent, for the tap-to-inspect panel. */
+  getOpponentRead(player: number): OpponentProfile {
+    return opponentProfile(this.game, player);
   }
 
   private lastPromptKey: string | null = null;
@@ -337,6 +436,16 @@ function openHandNote(kind: TileKind, meldName: string): string {
 
 function seatLabel(w: string): string {
   return { E: 'East 東', S: 'South 南', W: 'West 西', N: 'North 北' }[w] ?? w;
+}
+
+function shapeName(shape: OpponentProfile['shape']): string {
+  switch (shape) {
+    case 'pure-flush': return 'building a one-suit flush';
+    case 'mixed-flush': return 'building mixed one suit';
+    case 'all-pongs': return 'going for all pongs';
+    case 'honors': return 'stacking honour sets';
+    default: return 'shape unclear';
+  }
 }
 
 /** Best achievable shanten over all discards from a 3n+2 hand. */

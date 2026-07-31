@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { GUIDE } from '../content/tutorial';
+import { GUIDE, STRATEGY } from '../content/tutorial';
 import { SCORING_TABLE, PAYOUT_NOTE } from '../content/scoringTable';
 import { Tile } from './Tile';
 import { ALL_KINDS, flowerKind } from '../engine/types';
 import { tileLongName } from '../content/names';
 
-type Tab = 'guide' | 'tiles' | 'scoring';
+type Tab = 'guide' | 'strategy' | 'tiles' | 'scoring';
 
 /** The rules & reference panel — available any time via ⓘ, fully dismissable. */
 export function TutorialModal({ onClose }: { onClose: () => void }) {
@@ -16,6 +16,7 @@ export function TutorialModal({ onClose }: { onClose: () => void }) {
         <div className="modal-head">
           <div className="tabs">
             <button className={tab === 'guide' ? 'tab tab-on' : 'tab'} onClick={() => setTab('guide')}>How to play</button>
+            <button className={tab === 'strategy' ? 'tab tab-on' : 'tab'} onClick={() => setTab('strategy')}>Strategy</button>
             <button className={tab === 'tiles' ? 'tab tab-on' : 'tab'} onClick={() => setTab('tiles')}>Tiles</button>
             <button className={tab === 'scoring' ? 'tab tab-on' : 'tab'} onClick={() => setTab('scoring')}>Scoring</button>
           </div>
@@ -25,6 +26,16 @@ export function TutorialModal({ onClose }: { onClose: () => void }) {
           {tab === 'guide' && (
             <div className="guide">
               {GUIDE.map((s) => (
+                <section key={s.title}>
+                  <h3>{s.title}</h3>
+                  {s.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+                </section>
+              ))}
+            </div>
+          )}
+          {tab === 'strategy' && (
+            <div className="guide">
+              {STRATEGY.map((s) => (
                 <section key={s.title}>
                   <h3>{s.title}</h3>
                   {s.paragraphs.map((p, i) => <p key={i}>{p}</p>)}

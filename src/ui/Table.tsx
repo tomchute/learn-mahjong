@@ -4,6 +4,7 @@ import { Tile } from './Tile';
 import { Tile as TileT, Meld } from '../engine/types';
 import { WIND_LABEL, tileName } from '../content/names';
 import { ClaimBar } from './ClaimBar';
+import { OpponentReadModal } from './OpponentReadModal';
 
 /**
  * The mahjong table, player's perspective:
@@ -16,6 +17,7 @@ import { ClaimBar } from './ClaimBar';
 export function Table({ store }: { store: GameStore }) {
   const g = store.game;
   const [selected, setSelected] = useState<number | null>(null);
+  const [readPlayer, setReadPlayer] = useState<number | null>(null);
 
   // clear any raised selection whenever the game state moves on (a stale
   // selection would turn a later single tap into an instant discard)
@@ -30,6 +32,7 @@ export function Table({ store }: { store: GameStore }) {
   const addedGongs = g.addedGongOptions(0);
   const myShanten = me.concealed.length % 3 === 1 ? g.shantenOf(0) : null;
   const myWaits = myShanten === 0 ? g.waitsOf(0) : [];
+  const dangerKinds = store.getDangerKinds();
 
   const tapTile = (t: TileT) => {
     if (!myTurn) return;
@@ -44,10 +47,10 @@ export function Table({ store }: { store: GameStore }) {
   return (
     <main className="table">
       {/* Opponent across (2) */}
-      <OpponentZone g={store} player={2} orientation="top" />
+      <OpponentZone g={store} player={2} orientation="top" onRead={setReadPlayer} />
 
       <div className="table-mid">
-        <OpponentZone g={store} player={3} orientation="left" />
+        <OpponentZone g={store} player={3} orientation="left" onRead={setReadPlayer} />
 
         <div className="center-area">
           <DiscardZone store={store} player={2} zone="top" />
@@ -59,7 +62,7 @@ export function Table({ store }: { store: GameStore }) {
           <DiscardZone store={store} player={0} zone="bottom" />
         </div>
 
-        <OpponentZone g={store} player={1} orientation="right" />
+        <OpponentZone g={store} player={1} orientation="right" onRead={setReadPlayer} />
       </div>
 
       {/* Your melds & flowers */}
@@ -112,6 +115,7 @@ export function Table({ store }: { store: GameStore }) {
       <div className={`rack ${myTurn ? 'rack-active' : ''}`}>
         {me.concealed.map((t) => {
           const isDrawn = g.drawnTile?.id === t.id && myTurn;
+          const isDanger = dangerKinds.has(t.kind);
           return (
             <div
               key={t.id}
@@ -122,7 +126,7 @@ export function Table({ store }: { store: GameStore }) {
               }}
               tabIndex={myTurn ? 0 : -1}
               role="button"
-              aria-label={`Tile ${t.kind}${selected === t.id ? ', selected — activate again to discard' : ''}`}
+              aria-label={`Tile ${t.kind}${isDanger ? ', warning: a ready opponent wins on this' : ''}${selected === t.id ? ', selected — activate again to discard' : ''}`}
             >
               <Tile
                 kind={t.kind}
@@ -130,10 +134,15 @@ export function Table({ store }: { store: GameStore }) {
                 selected={selected === t.id}
                 highlight={isDrawn ? 'new' : store.hint?.tileId === t.id ? 'hint' : null}
               />
+              {isDanger && <span className="danger-dot" title="A ready opponent wins on this tile" />}
             </div>
           );
         })}
       </div>
+
+      {readPlayer !== null && (
+        <OpponentReadModal store={store} player={readPlayer} onClose={() => setReadPlayer(null)} />
+      )}
     </main>
   );
 }
@@ -147,18 +156,28 @@ function rackTileSize(n: number): number {
 }
 
 // ------------------------------------------------------------------
-function OpponentZone({ g: store, player, orientation }: { g: GameStore; player: number; orientation: 'top' | 'left' | 'right' }) {
+function OpponentZone({ g: store, player, orientation, onRead }: {
+  g: GameStore; player: number; orientation: 'top' | 'left' | 'right';
+  onRead: (player: number) => void;
+}) {
   const g = store.game;
   const p = g.players[player];
   const active = g.phase === 'awaiting-discard' && g.turn === player;
   const n = p.concealed.length;
+  const readable = store.settings.coachEnabled;
   return (
     <div className={`opp opp-${orientation} ${active ? 'opp-active' : ''}`}>
-      <div className="opp-info">
+      <div
+        className={`opp-info ${readable ? 'opp-info-readable' : ''}`}
+        onClick={readable ? () => onRead(player) : undefined}
+        role={readable ? 'button' : undefined}
+        aria-label={readable ? `Read ${p.name}'s tactics` : undefined}
+      >
         <span className="opp-name">{p.name}</span>
         <span className="opp-wind">{WIND_LABEL[g.seatWind(player)].split(' ')[1]}</span>
         <span className="opp-chips">{p.chips}</span>
         {g.dealer === player && <span className="dealer-chip">deal</span>}
+        {readable && <span className="opp-read-icon">👁</span>}
       </div>
       <div className={`opp-tiles opp-tiles-${orientation}`}>
         {Array.from({ length: n }, (_, i) => (

@@ -93,6 +93,9 @@ body {
   font-size: 11px; opacity: 0.95; flex-wrap: wrap; justify-content: center;
 }
 .opp-name { font-weight: 700; }
+.opp-info-readable { cursor: pointer; border-radius: 6px; padding: 1px 4px; background: rgba(255,255,255,0.06); }
+.opp-info-readable:active { background: rgba(255,255,255,0.18); }
+.opp-read-icon { font-size: 10px; opacity: 0.75; }
 .opp-wind { color: var(--gold); font-weight: 700; }
 .opp-chips { opacity: 0.8; }
 .dealer-chip {
@@ -238,6 +241,17 @@ body {
 .rack-slot-tappable { cursor: pointer; touch-action: manipulation; }
 .rack-slot:focus-visible { outline: 2px solid var(--gold); border-radius: 8px; }
 .rack-drawn { margin-left: 8px; }
+.rack-slot { position: relative; }
+.danger-dot {
+  position: absolute;
+  top: 6px; right: 0;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--bad);
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 5px rgba(214, 69, 65, 0.9);
+  pointer-events: none;
+}
 
 /* ---------- buttons ---------- */
 .btn {
@@ -382,6 +396,14 @@ body {
 .pay-winner { background: rgba(233,180,76,0.15); }
 .pay-chips { text-align: right; opacity: 0.8; }
 .hand-end-modal .btn, .match-end-modal .btn { width: 100%; margin-top: 10px; }
+
+/* ---------- opponent read modal ---------- */
+.read-modal h2 { display: flex; align-items: baseline; gap: 8px; font-size: 18px; }
+.read-modal h2 .opp-wind { font-size: 13px; }
+.read-modal h3 { color: var(--felt-dark); margin-top: 10px; }
+.read-visible p, .read-peek p { font-size: 13.5px; }
+.read-melds { display: flex; flex-wrap: wrap; gap: 6px; background: var(--felt); border-radius: 8px; padding: 6px; margin-bottom: 6px; }
+.read-lesson { font-style: italic; opacity: 0.8; border-top: 1px dashed rgba(0,0,0,0.2); padding-top: 6px; margin-top: 6px; }
 
 /* ---------- menu ---------- */
 .menu-sheet {
