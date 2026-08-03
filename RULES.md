@@ -65,6 +65,11 @@ interpretation. Decisions made:
 5. **Robbing the gong** applies to added (exposed) gongs. Robbing a
   *concealed* gong is not implemented (some tables allow it for thirteen
   orphans only).
+5b. **Gong & self-draw timing** — declaring a gong (concealed or added) and
+  declaring a self-draw win both require an actual draw this turn, or the
+  dealer's untouched opening hand. A turn gained by claiming a pong/seung
+  grants no draw: you must simply discard. (Without this, a claim could be
+  laundered into a "self-draw" or into a gong's free replacement tile.)
 6. **Eight flowers** — instant 8-fan win the moment the 8th flower is drawn;
   paid by all three opponents like a self-draw.
 7. **Heavenly hand** — dealer's opening 14 tiles are a win (no discard made).

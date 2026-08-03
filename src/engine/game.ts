@@ -203,21 +203,30 @@ export class Game {
     return this.players[player].concealed.map((t) => t.kind);
   }
 
+  /**
+   * Self-draw wins and gong declarations require an ACTUAL draw this turn
+   * (or the dealer's untouched opening 14). A turn gained by claiming a
+   * pong/seung comes with no draw: you must simply discard — otherwise a
+   * claim could be laundered into a "self-draw" (triple payment) or into a
+   * gong's free replacement tile.
+   */
+  private hasDrawnOrOpeningHand(player: number): boolean {
+    if (this.drawnTile !== null) return true;
+    return player === this.dealer && this.discardsThisHand === 0 &&
+      this.players[player].melds.length === 0;
+  }
+
   /** Can `player` declare a self-draw win right now (it's their discard turn)? */
   canSelfWin(player: number): boolean {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return false;
-    // A self-draw win requires an actual draw (or the dealer's opening 14).
-    // Without this, claiming a pong could be followed by an instant "self
-    // draw" win, milking triple payment out of a discard-completed hand.
-    const openingHand = player === this.dealer && this.discardsThisHand === 0 &&
-      this.players[player].melds.length === 0;
-    if (this.drawnTile === null && !openingHand) return false;
+    if (!this.hasDrawnOrOpeningHand(player)) return false;
     return isWinningHand(this.concealedKinds(player), this.players[player].melds.length);
   }
 
   /** Concealed gong kinds available to the player on their turn. */
   concealedGongOptions(player: number): TileKind[] {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return [];
+    if (!this.hasDrawnOrOpeningHand(player)) return [];
     const counts = toCounts(this.concealedKinds(player));
     const out: TileKind[] = [];
     counts.forEach((n, i) => {
@@ -229,6 +238,7 @@ export class Game {
   /** Added gong: a 4th tile in hand matching an exposed pong. */
   addedGongOptions(player: number): TileKind[] {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return [];
+    if (!this.hasDrawnOrOpeningHand(player)) return [];
     const kinds = this.concealedKinds(player);
     return this.players[player].melds
       .filter((m) => m.type === 'pong' && kinds.includes(m.tiles[0].kind))
@@ -469,7 +479,7 @@ export class Game {
 
   /** current player declares a concealed gong */
   declareConcealedGong(player: number, kind: TileKind) {
-    if (this.phase !== 'awaiting-discard' || this.turn !== player) return;
+    if (!this.concealedGongOptions(player).includes(kind)) return;
     const p = this.players[player];
     const tiles = p.concealed.filter((t) => t.kind === kind);
     if (tiles.length !== 4) return;
@@ -481,7 +491,7 @@ export class Game {
 
   /** current player adds 4th tile to an exposed pong (robbable!) */
   declareAddedGong(player: number, kind: TileKind) {
-    if (this.phase !== 'awaiting-discard' || this.turn !== player) return;
+    if (!this.addedGongOptions(player).includes(kind)) return;
     const p = this.players[player];
     const meld = p.melds.find((m) => m.type === 'pong' && m.tiles[0].kind === kind);
     const ti = p.concealed.findIndex((t) => t.kind === kind);

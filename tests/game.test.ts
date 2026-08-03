@@ -106,6 +106,50 @@ describe('game flow', () => {
     }
   });
 
+  it('gongs and self-wins require an actual draw (not a claim-gained turn)', () => {
+    const g = allAiGame(77);
+    g.startHand();
+    // dealer's untouched opening hand: gong/self-win gates open
+    expect((g as any).hasDrawnOrOpeningHand(g.dealer)).toBe(true);
+
+    // simulate a claim-gained turn: it's my discard turn but nothing was drawn
+    const p = (g.dealer + 1) % 4;
+    g.turn = p;
+    g.phase = 'awaiting-discard';
+    (g as any).drawnTile = null;
+    (g as any).discardsThisHand = 1; // past the opening
+    // rig four of a kind in hand + an exposed pong with the 4th in hand
+    g.players[p].concealed = [
+      { id: 9001, kind: 'dots-5' }, { id: 9002, kind: 'dots-5' },
+      { id: 9003, kind: 'dots-5' }, { id: 9004, kind: 'dots-5' },
+      { id: 9005, kind: 'bamboo-2' },
+    ] as any;
+    g.players[p].melds = [{
+      type: 'pong',
+      tiles: [{ id: 9101, kind: 'bamboo-2' }, { id: 9102, kind: 'bamboo-2' }, { id: 9103, kind: 'bamboo-2' }] as any,
+      claimedFrom: (p + 1) % 4,
+      concealed: false,
+    }, {
+      type: 'pong',
+      tiles: [{ id: 9104, kind: 'chars-3' }, { id: 9105, kind: 'chars-3' }, { id: 9106, kind: 'chars-3' }] as any,
+      claimedFrom: (p + 1) % 4,
+      concealed: false,
+    }];
+    expect(g.concealedGongOptions(p)).toEqual([]);
+    expect(g.addedGongOptions(p)).toEqual([]);
+    expect(g.canSelfWin(p)).toBe(false);
+    // declares are no-ops without the draw
+    const meldsBefore = g.players[p].melds.length;
+    g.declareConcealedGong(p, 'dots-5');
+    g.declareAddedGong(p, 'bamboo-2');
+    expect(g.players[p].melds.length).toBe(meldsBefore);
+
+    // after an actual draw, the same holdings unlock the options
+    (g as any).drawnTile = g.players[p].concealed[4];
+    expect(g.concealedGongOptions(p)).toEqual(['dots-5']);
+    expect(g.addedGongOptions(p)).toEqual(['bamboo-2']);
+  });
+
   it('ai discard choice always returns a real tile', () => {
     const g = allAiGame(11);
     g.startHand();
