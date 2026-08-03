@@ -280,7 +280,7 @@ export function explainMyHand(game: Game): HandExplanation | null {
     // mid-discard-turn: analyse the hand as it stands after the best discard
     const best = bestDiscard(kinds, meldCount);
     kinds = best.rest;
-    preface = `Counting past your weakest tile (${tileName(best.kind)}): `;
+    preface = `You have 14 tiles, so setting aside ${tileName(best.kind)} — your least useful tile and a natural discard — here's the rest: `;
   } else if (n % 3 !== 1) {
     return null;
   }
