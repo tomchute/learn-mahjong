@@ -6,6 +6,7 @@ import { explainMyHand, explainWinStructure, fanSummaryLine } from './engine/exp
 import { shanten as shantenFn } from './engine/hand';
 import {
   opponentProfile, dangerTiles, myWaitAnalysis, provablySafeKinds, OpponentProfile,
+  detectNudges,
 } from './engine/insight';
 import { recordDiscard, recordClaim, buildHandReview, HandLogEntry, HandReview } from './engine/review';
 import { pickRandomSeed } from './engine/rng';
@@ -22,13 +23,17 @@ import { tileName } from './content/names';
 
 export interface CoachMessage {
   id: number;
-  tone: 'info' | 'action' | 'good' | 'ok' | 'risky' | 'bad' | 'event' | 'win';
+  tone: 'info' | 'action' | 'good' | 'ok' | 'risky' | 'bad' | 'event' | 'win' | 'nudge';
   text: string;
   details?: string[];
 }
 
 export interface Settings {
   coachEnabled: boolean;
+  /** Coach's Peek: omniscient aids (danger dots, opponent waits, your ready
+   *  waits/attack picture). Turning it off is the graduation path — the
+   *  visible-evidence nudges and narration stay on. */
+  peekEnabled: boolean;
   speed: 'slow' | 'normal' | 'fast';
   soundEnabled: boolean;
 }
@@ -39,9 +44,9 @@ const STATS_KEY = 'learn-mahjong-stats';
 export function loadSettings(): Settings {
   try {
     const s = localStorage.getItem(SETTINGS_KEY);
-    if (s) return { coachEnabled: true, speed: 'normal', soundEnabled: false, ...JSON.parse(s) };
+    if (s) return { coachEnabled: true, peekEnabled: true, speed: 'normal', soundEnabled: false, ...JSON.parse(s) };
   } catch { /* ignore */ }
-  return { coachEnabled: true, speed: 'normal', soundEnabled: false };
+  return { coachEnabled: true, peekEnabled: true, speed: 'normal', soundEnabled: false };
 }
 export function saveSettings(s: Settings) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
@@ -84,6 +89,8 @@ export class GameStore {
   private reviewedHand = 0;
   /** this match already counted in stats (set when the final hand ends) */
   private matchCounted = false;
+  /** competitor-nudge dedup keys for the current hand */
+  private nudgeFired = new Set<string>();
   private msgId = 1;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -118,6 +125,7 @@ export class GameStore {
     this.lastReview = null;
     this.reviewedHand = 0;
     this.matchCounted = false;
+    this.nudgeFired = new Set();
     this.started = true;
     this.game.startHand();
     const youDeal = this.game.dealer === 0;
@@ -274,6 +282,7 @@ export class GameStore {
     this.announcedMyReady = false;
     this.handLog = [];
     this.myDiscardCount = 0;
+    this.nudgeFired = new Set();
     g.proceed();
     if (!willEnd) {
       this.say('info', `Hand ${g.handNumber}: ${seatLabel(g.roundWind)} round. You are ${seatLabel(g.seatWind(0))}${g.dealer === 0 ? ' — you deal (14 tiles, discard first)' : ''}.`);
@@ -370,8 +379,8 @@ export class GameStore {
         spoke = true;
       }
 
-      // they became ready — the key defensive moment
-      if (prof.ready && !prev.ready) {
+      // they became ready — the key defensive moment (omniscient: peek only)
+      if (this.settings.peekEnabled && prof.ready && !prev.ready) {
         const details = [
           prof.shapeEvidence,
           `Coach's peek 👁: they are waiting on ${prof.waits.map(tileName).join(' / ')} — worth ${prof.potentialFan} fan (${2 ** Math.min(prof.potentialFan, 13)} chips from whoever discards it).`,
@@ -392,8 +401,18 @@ export class GameStore {
       this.announced[i] = { melds: prof.meldCount, ready: prof.ready };
     }
 
-    // your own attack picture, once per hand when you first become ready
-    if (!this.announcedMyReady && g.players[0].concealed.length % 3 === 1 && g.shantenOf(0) === 0) {
+    // competitor nudges: public-information hints, deliberately subtle.
+    // At most one per pass so they read as an aside, not an alarm.
+    const nudges = detectNudges(g, this.nudgeFired);
+    if (nudges.length > 0) {
+      const n = nudges[0];
+      this.nudgeFired.add(n.key);
+      this.say('nudge', n.text, [n.detail]);
+      spoke = true;
+    }
+
+    // your own attack picture, once per hand when you first become ready (peek only)
+    if (this.settings.peekEnabled && !this.announcedMyReady && g.players[0].concealed.length % 3 === 1 && g.shantenOf(0) === 0) {
       const waits = myWaitAnalysis(g);
       if (waits.length > 0) {
         const totalUnseen = waits.reduce((a, w) => a + w.unseen, 0);
@@ -411,9 +430,9 @@ export class GameStore {
     return spoke;
   }
 
-  /** Danger kinds for the rack UI (only meaningful when an opponent is ready). */
+  /** Danger kinds for the rack UI (Coach's Peek only — this is omniscience). */
   getDangerKinds(): Set<TileKind> {
-    if (!this.settings.coachEnabled) return new Set();
+    if (!this.settings.coachEnabled || !this.settings.peekEnabled) return new Set();
     return new Set(dangerTiles(this.game).keys());
   }
 

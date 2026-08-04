@@ -127,6 +127,18 @@ verified headless with the network cut:
   (backlog), tablet sparseness, 21px rack slots at 320px, earthly-hand fan
   in one rare passed-win counterfactual.
 
+- **Coach's Peek toggle + Competitor Nudges** (2026-08-01, owner request) —
+  `settings.peekEnabled` (default on) gates ALL omniscient aids: rack danger
+  dots, opponent became-ready alerts + peek lines, your READY badge/waits and
+  attack picture, and the read-modal peek section (visible evidence stays).
+  `detectNudges` in insight.ts fires subtle 👀 hints from PUBLIC info only
+  (2nd/3rd exposed meld, honour claims, suit hoarding in discards, late
+  middle-tile discards), phrased as pointers-not-answers, one per pass, once
+  per rule per player per hand (store.nudgeFired). Nudge tone styled dotted-
+  gold-italic. Strategy tab documents the graduation path. Retrospective
+  feedback (discard grading, hand review) intentionally stays omniscient
+  with peek off — live help is gated, post-hoc learning is not.
+
 ## Refinement backlog (prioritized, none started)
 
 1. **Match persistence/resume** — serialize seed + action log to

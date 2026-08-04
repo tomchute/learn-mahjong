@@ -95,6 +95,14 @@ export default function App() {
               />
             </label>
             <label className="menu-row">
+              <span>Coach's Peek 👁<br /><small>danger dots, waits, opponent peeks</small></span>
+              <input
+                type="checkbox"
+                checked={store.settings.peekEnabled}
+                onChange={(e) => store.setSettings({ peekEnabled: e.target.checked })}
+              />
+            </label>
+            <label className="menu-row">
               <span>Game speed</span>
               <select
                 value={store.settings.speed}

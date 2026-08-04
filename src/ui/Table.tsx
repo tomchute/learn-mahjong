@@ -31,7 +31,8 @@ export function Table({ store }: { store: GameStore }) {
   const concealedGongs = g.concealedGongOptions(0);
   const addedGongs = g.addedGongOptions(0);
   const myShanten = me.concealed.length % 3 === 1 ? g.shantenOf(0) : null;
-  const myWaits = myShanten === 0 ? g.waitsOf(0) : [];
+  const peek = store.settings.peekEnabled;
+  const myWaits = peek && myShanten === 0 ? g.waitsOf(0) : [];
   const dangerKinds = store.getDangerKinds();
 
   const tapTile = (t: TileT) => {
@@ -78,10 +79,10 @@ export function Table({ store }: { store: GameStore }) {
       {/* Status strip + actions share one stable-height row to avoid reflow */}
       <div className="controls-row">
         <div className="status-strip">
-          {myShanten === 0 && myWaits.length > 0 && (
+          {peek && myShanten === 0 && myWaits.length > 0 && (
             <span className="ready-badge">READY 聽 — win on: {myWaits.map(tileName).join(' · ')}</span>
           )}
-          {myTurn && myShanten !== 0 && <span className="turn-badge">Your turn — tap a tile twice to discard</span>}
+          {myTurn && (myShanten !== 0 || !peek) && <span className="turn-badge">Your turn — tap a tile twice to discard</span>}
           {!myTurn && g.phase === 'awaiting-discard' && (
             <span className="waiting-badge">{g.players[g.turn].name} is thinking…</span>
           )}

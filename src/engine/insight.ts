@@ -1,7 +1,8 @@
 import {
   TileKind, KIND_INDEX, ALL_KINDS, Suit,
-  isDragonKind, isWindKind, isHonor, suitOf, windOf,
+  isDragonKind, isWindKind, isHonor, isSuited, suitOf, rankOf, windOf,
 } from './types';
+import { tileName } from '../content/names';
 import { shanten, winningTiles } from './hand';
 import { scoreHand, WinContext } from './score';
 import { Game } from './game';
@@ -203,6 +204,96 @@ export function provablySafeKinds(game: Game): TileKind[] {
   const held = new Set(me.concealed.map((t) => t.kind));
   for (const k of held) {
     if (isHonor(k) && unseenCount(game, k) === 0) out.push(k);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Competitor nudges
+// ---------------------------------------------------------------------------
+
+/**
+ * A nudge is a SUBTLE hint that the game may be shifting in an opponent's
+ * favour, built ONLY from public information (melds, discards, claims) —
+ * never from hidden hands. Nudges point at what to look at and ask the
+ * question; they deliberately don't answer it. They are the graduation path
+ * from Coach's Peek: the skill of spotting these signals is the lesson.
+ */
+export interface Nudge {
+  /** dedup key: `${player}:${rule}` — each rule fires once per player per hand */
+  key: string;
+  player: number;
+  text: string;
+  detail: string;
+}
+
+const MIDDLE_RANKS = [4, 5, 6];
+
+/**
+ * Detect nudges from public state. `fired` holds keys already shown this
+ * hand; returned nudges are new (caller records their keys).
+ */
+export function detectNudges(game: Game, fired: Set<string>): Nudge[] {
+  const out: Nudge[] = [];
+  const push = (player: number, rule: string, text: string, detail: string) => {
+    const key = `${player}:${rule}`;
+    if (!fired.has(key)) out.push({ key, player, text, detail });
+  };
+
+  for (let i = 1; i < 4; i++) {
+    const p = game.players[i];
+    const exposed = p.melds.filter((m) => !m.concealed);
+    const name = p.name;
+
+    // second exposed set: their plan is becoming readable
+    if (exposed.length === 2) {
+      push(i, 'second-meld',
+        `👀 ${name} just claimed a second set.`,
+        'Check what their two melds share — same suit? Both triplets? Two claims usually means a plan, and the plan tells you which tiles feed it.');
+    }
+
+    // third exposed set: one away from a full hand of melds
+    if (exposed.length >= 3) {
+      push(i, 'third-meld',
+        `👀 Three sets showing for ${name}.`,
+        'One more set and a pair wins it. From here, every tile that fits their visible pattern is a real risk — play tighter around them.');
+    }
+
+    // honour claim: fan on the table
+    const honourMeld = exposed.find((m) => isHonor(m.tiles[0].kind));
+    if (honourMeld) {
+      push(i, 'honour-claim',
+        `👀 ${name} claimed ${tileName(honourMeld.tiles[0].kind)} — an honour set.`,
+        'Claimed honours usually mean fan: their hand is worth more than it looks, so feeding them costs double or worse.');
+    }
+
+    // suit hoarding: enough discards to judge, one suit entirely absent,
+    // and their claims lean into that same suit
+    if (p.discards.length >= 6) {
+      for (const suit of ['dots', 'bamboo', 'chars'] as Suit[]) {
+        const discardedOfSuit = p.discards.filter((t) => suitOf(t.kind) === suit).length;
+        const meldsOfSuit = exposed.filter((m) => suitOf(m.tiles[0].kind) === suit).length;
+        if (discardedOfSuit === 0 && meldsOfSuit >= 1) {
+          push(i, 'suit-hoard',
+            `👀 Check ${name}'s discards — not a single ${suit} tile among them.`,
+            `Their claims lean ${suit} too. When a player never lets a suit go, they're usually collecting it — think twice before discarding ${suit}.`);
+          break;
+        }
+      }
+    }
+
+    // middle-tile discards late: settled hands throw useful-looking tiles
+    if (p.discards.length >= 6) {
+      const lastTwo = p.discards.slice(-2);
+      const bothMiddle = lastTwo.length === 2 && lastTwo.every(
+        (t) => isSuited(t.kind) && MIDDLE_RANKS.includes(rankOf(t.kind)),
+      );
+      if (bothMiddle) {
+        push(i, 'middle-discards',
+          `👀 ${name} is now throwing middle tiles like ${tileName(lastTwo[1].kind)}.`,
+          'Early discards are usually edges and honours. When the middle tiles start coming out, the hand behind them is often already decided — they may be close.');
+      }
+    }
   }
   return out;
 }

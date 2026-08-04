@@ -47,7 +47,12 @@ export function OpponentReadModal({ store, player, onClose }: {
 
         <h3>Coach's peek 👁</h3>
         <div className="read-peek">
-          {prof.shanten >= 99 ? (
+          {!store.settings.peekEnabled ? (
+            <p>
+              Coach's Peek is off — form your own read from the evidence above.
+              (Turn it back on any time in the ☰ menu.)
+            </p>
+          ) : prof.shanten >= 99 ? (
             <p>Mid-action — check back after their discard.</p>
           ) : prof.ready ? (
             <p>

@@ -95,6 +95,7 @@ export const STRATEGY: GuideSection[] = [
       'What\'s safe? Only one thing is provable at a real table: an honour tile where all four copies are visible can\'t win for anyone (honours can\'t sit in runs). Everything else is only SAFER: tiles the threatening player has discarded themselves, tiles many copies of which are visible, and terminal tiles (1s and 9s fit fewer runs than a 5 does).',
       'A suited tile is never fully safe — someone can wait on it for a run while holding none of them. Middle tiles (4-5-6) are the most dangerous tiles in the game: they complete the most runs.',
       'In this app, when an opponent is ready the coach marks truly dangerous tiles in your rack with a red dot — use it to check your instincts, not to replace them.',
+      'Ready to graduate? Turn OFF Coach\'s Peek in the ☰ menu: the red dots, wait lists and opponent peeks disappear, but the subtle 👀 nudges stay — they point at public evidence (claims, discards) and let you draw the conclusion. That\'s how you\'ll play at a real table.',
     ],
   },
   {
