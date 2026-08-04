@@ -64,6 +64,8 @@ export interface HandResult {
   payments: number[];         // chip delta per player
   winningTile: Tile | null;
   winnerHand: { concealed: Tile[]; melds: Meld[]; flowers: Tile[] } | null;
+  /** the win came from robbing `from`'s added gong (not a discard) */
+  robbed: boolean;
   /** seat winds during the hand (dealer rotation happens after) */
   seatWinds: Wind[];
 }
@@ -227,6 +229,7 @@ export class Game {
   concealedGongOptions(player: number): TileKind[] {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return [];
     if (!this.hasDrawnOrOpeningHand(player)) return [];
+    if (this.wall.remaining === 0) return []; // no replacement tile → no gong
     const counts = toCounts(this.concealedKinds(player));
     const out: TileKind[] = [];
     counts.forEach((n, i) => {
@@ -239,6 +242,7 @@ export class Game {
   addedGongOptions(player: number): TileKind[] {
     if (this.phase !== 'awaiting-discard' || this.turn !== player) return [];
     if (!this.hasDrawnOrOpeningHand(player)) return [];
+    if (this.wall.remaining === 0) return []; // no replacement tile → no gong
     const kinds = this.concealedKinds(player);
     return this.players[player].melds
       .filter((m) => m.type === 'pong' && kinds.includes(m.tiles[0].kind))
@@ -253,7 +257,9 @@ export class Game {
 
     const win = isWinningHand([...kinds, discard.kind], p.melds.length);
     const pong = counts[ki] >= 2;
-    const gong = counts[ki] >= 3;
+    // no gong when the wall has no replacement tile left (standard table rule;
+    // it would also end the hand instantly, skipping the final claim window)
+    const gong = counts[ki] >= 3 && this.wall.remaining > 0;
 
     const chows: ChowOption[] = [];
     if ((from + 1) % 4 === player) {
@@ -341,9 +347,19 @@ export class Game {
   humanClaim(claim: 'win' | 'pong' | 'gong' | 'chow' | 'pass', chow?: ChowOption) {
     if (this.phase !== 'awaiting-claims') return;
     if (this.pendingAddedGong) {
-      // this claim window is a robbing-the-gong prompt
+      // this claim window is a robbing-the-gong prompt: win robs, anything else declines
       this.resolveRob(claim === 'win');
       return;
+    }
+    // validate against the offered options — a stale or malformed claim must
+    // never fabricate a phantom win, an undersized "gong", or a wrong-seat chow
+    const o = this.humanClaimOptions;
+    if (claim !== 'pass') {
+      if (!o) return;
+      if (claim === 'win' && !o.win) return;
+      if (claim === 'pong' && !o.pong) return;
+      if (claim === 'gong' && !o.gong) return;
+      if (claim === 'chow' && !o.chows.some((c) => c.kinds.join() === chow?.kinds.join())) return;
     }
     this.phase = 'awaiting-discard'; // will be corrected by resolveClaims
     if (claim === 'pass') {
@@ -356,7 +372,11 @@ export class Game {
 
   private resolveClaims(mode: 'none' | 'human', humanClaim?: PendingClaim) {
     const { tile, from } = this.lastDiscard!;
+    // the window is closing: clear the human's options so a stale second
+    // tap (before the UI unmounts) can't re-enter this path
+    this.humanClaimOptions = null;
     const candidates: PendingClaim[] = [...this.aiClaims];
+    this.aiClaims = [];
     if (mode === 'human' && humanClaim) candidates.push(humanClaim);
 
     const priority = (c: PendingClaim) =>
@@ -582,7 +602,7 @@ export class Game {
       earthly,
     };
     const score = scoreHand(this.concealedKinds(player), p.melds, p.flowers.map((f) => f.kind), ctx);
-    this.applyWin(player, from, score, winningTile, flags.selfDraw);
+    this.applyWin(player, from, score, winningTile, flags.selfDraw, flags.robbing);
   }
 
   private finishWithEightFlowers(player: number) {
@@ -592,10 +612,10 @@ export class Game {
       robbingGong: false, afterGong: false, afterDoubleGong: false,
       lastTile: false, heavenly: false, earthly: false,
     });
-    this.applyWin(player, null, score, null, true);
+    this.applyWin(player, null, score, null, true, false);
   }
 
-  private applyWin(player: number, from: number | null, score: ScoreResult, winningTile: Tile | null, selfDraw: boolean) {
+  private applyWin(player: number, from: number | null, score: ScoreResult, winningTile: Tile | null, selfDraw: boolean, robbed = false) {
     const payments = [0, 0, 0, 0];
     if (selfDraw || from === null) {
       for (let i = 0; i < 4; i++) {
@@ -620,6 +640,7 @@ export class Game {
         flowers: p.flowers.slice(),
       },
       seatWinds: [0, 1, 2, 3].map((i) => this.seatWind(i)),
+      robbed,
     };
     this.emit({ type: 'win', player, from, score, winningTile, selfDraw });
     this.phase = 'hand-end';
@@ -632,6 +653,7 @@ export class Game {
       winner: null, from: null, score: null,
       payments: [0, 0, 0, 0], winningTile: null, winnerHand: null,
       seatWinds: [0, 1, 2, 3].map((i) => this.seatWind(i)),
+      robbed: false,
     };
     this.phase = 'hand-end';
     // draw: dealer stays ("the dice roll goes back to the same person")

@@ -150,6 +150,51 @@ describe('game flow', () => {
     expect(g.addedGongOptions(p)).toEqual(['bamboo-2']);
   });
 
+  it('humanClaim validates against the offered options', () => {
+    const g = allAiGame(55);
+    g.players[0].isHuman = true;
+    g.startHand();
+    // force a claim window where the human can only pass
+    (g as any).phase = 'awaiting-claims';
+    (g as any).lastDiscard = { tile: { id: 8888, kind: 'dots-5' }, from: 3 };
+    g.humanClaimOptions = { win: false, pong: false, gong: false, chows: [] };
+    const chipsBefore = g.players.map((p) => p.chips);
+    const meldsBefore = g.players[0].melds.length;
+
+    g.humanClaim('win');   // phantom win must be rejected
+    expect(g.handResult).toBeNull();
+    g.humanClaim('gong');  // undersized gong must be rejected
+    expect(g.players[0].melds.length).toBe(meldsBefore);
+    g.humanClaim('chow', { kinds: ['dots-4', 'dots-5', 'dots-6'] });
+    expect(g.players[0].melds.length).toBe(meldsBefore);
+    expect(g.players.map((p) => p.chips)).toEqual(chipsBefore);
+    expect(g.phase).toBe('awaiting-claims'); // window still open, only pass proceeds
+  });
+
+  it('gongs are not offered when the wall is empty', () => {
+    const g = allAiGame(66);
+    g.startHand();
+    const p = g.turn;
+    // give the current player a quad + drain the wall
+    g.players[p].concealed = [
+      { id: 9601, kind: 'dots-5' }, { id: 9602, kind: 'dots-5' },
+      { id: 9603, kind: 'dots-5' }, { id: 9604, kind: 'dots-5' },
+      { id: 9605, kind: 'bamboo-2' },
+    ] as any;
+    (g as any).drawnTile = g.players[p].concealed[4];
+    while (g.wall.remaining > 0) g.wall.drawFront();
+    expect(g.concealedGongOptions(p)).toEqual([]);
+    // claim-gong from a discard is also blocked (holder has 3 copies)
+    const q = (p + 1) % 4;
+    g.players[q].concealed = [
+      { id: 9611, kind: 'chars-2' }, { id: 9612, kind: 'chars-2' },
+      { id: 9613, kind: 'chars-2' }, { id: 9614, kind: 'wind-N' },
+    ] as any;
+    const opts = g.claimOptionsFor(q, { id: 9700, kind: 'chars-2' } as any, p);
+    expect(opts.pong).toBe(true);   // pong needs no replacement — still legal
+    expect(opts.gong).toBe(false);  // gong blocked with no wall
+  });
+
   it('ai discard choice always returns a real tile', () => {
     const g = allAiGame(11);
     g.startHand();

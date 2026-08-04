@@ -33,9 +33,13 @@ export function HandEndModal({ store }: { store: GameStore }) {
             <p className="win-how">
               {r.from === null
                 ? 'Won by self-draw — all three opponents pay.'
-                : r.from === 0
-                  ? 'Won off YOUR discard — you pay the full amount.'
-                  : `Won off ${g.players[r.from].name}'s discard — only ${g.players[r.from].name} pays.`}
+                : r.robbed
+                  ? r.from === 0
+                    ? 'Won by ROBBING your added gong — the tile you added completed their hand, and you pay the full amount.'
+                    : `Won by robbing ${g.players[r.from].name}'s added gong — ${g.players[r.from].name} pays.`
+                  : r.from === 0
+                    ? 'Won off YOUR discard — you pay the full amount.'
+                    : `Won off ${g.players[r.from].name}'s discard — only ${g.players[r.from].name} pays.`}
             </p>
 
             {r.winnerHand && (

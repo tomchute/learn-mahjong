@@ -92,6 +92,115 @@ describe('hand review', () => {
     expect(loss).toBeTruthy();
   });
 
+  it('a robbed gong is attributed to the gong, not an innocent discard', () => {
+    const g = freshGame();
+    const me = g.players[0];
+    // an earlier innocent discard in the log
+    me.concealed = ['dots-5', 'dots-6', 'dots-7', 'bamboo-1', 'bamboo-2', 'bamboo-3',
+      'chars-4', 'chars-5', 'chars-6', 'wind-E', 'wind-E', 'dragon-R', 'dragon-G', 'dragon-B'].map(t);
+    const innocent = me.concealed[13];
+    const entry = recordDiscard(g, innocent, 1);
+
+    (g as any).phase = 'hand-end';
+    (g as any).handResult = {
+      winner: 2, from: 0, robbed: true,
+      score: { fan: 4, payout: 16, items: [], rawFan: 4, limit: false, decomp: null },
+      payments: [-16, 0, 16, 0], winningTile: t('chars-9'), winnerHand: null,
+      seatWinds: ['E', 'S', 'W', 'N'],
+    };
+    const review = buildHandReview(g, [entry]);
+    expect(review.outcomeDetail).toContain('ROBBED your added gong');
+    const robMoment = review.moments.find((m) => m.title.includes('robbed your added gong'));
+    expect(robMoment).toBeTruthy();
+    expect(robMoment!.severity).toBe('critical');
+    // the innocent discard must NOT be blamed
+    expect(review.moments.some((m) => m.title.includes('fed'))).toBe(false);
+  });
+
+  it('claiming a pong past an offered win is logged as a missed win', () => {
+    const g = freshGame();
+    const me = g.players[0];
+    // shanpon-ready hand: chars-9 completes it, and we hold a pair of it
+    me.concealed = ['dots-1', 'dots-2', 'dots-3', 'bamboo-4', 'bamboo-5', 'bamboo-6',
+      'chars-1', 'chars-2', 'chars-3', 'chars-9', 'chars-9', 'wind-N', 'wind-N'].map(t);
+    me.melds = [];
+    const opts = g.claimOptionsFor(0, t('chars-9'), 3);
+    expect(opts.win).toBe(true);
+    expect(opts.pong).toBe(true);
+    const entry = recordClaim(g, opts, t('chars-9'), 'pong', undefined, 2, false);
+    expect(entry.missedWinFan).not.toBeNull();
+
+    (g as any).phase = 'hand-end';
+    (g as any).handResult = {
+      winner: 1, from: 2, robbed: false,
+      score: { fan: 1, payout: 2, items: [], rawFan: 1, limit: false, decomp: null },
+      payments: [0, 2, -2, 0], winningTile: null, winnerHand: null,
+      seatWinds: ['E', 'S', 'W', 'N'],
+    };
+    const review = buildHandReview(g, [entry]);
+    const moment = review.moments.find((m) => m.title.includes('claimed a pong on a tile that WON'));
+    expect(moment).toBeTruthy();
+    expect(moment!.severity).toBe('critical');
+  });
+
+  it('forced discards from claim-gained complete hands are not blamed', () => {
+    const g = freshGame();
+    const me = g.players[0];
+    // complete 14-tile hand but NOT canSelfWin (no draw, melds claimed)
+    me.concealed = ['dots-1', 'dots-2', 'dots-3', 'bamboo-4', 'bamboo-5', 'bamboo-6',
+      'chars-9', 'chars-9'].map(t);
+    me.melds = [
+      { type: 'pong', tiles: ['wind-N', 'wind-N', 'wind-N'].map(t), claimedFrom: 3, concealed: false },
+      { type: 'pong', tiles: ['dragon-R', 'dragon-R', 'dragon-R'].map(t), claimedFrom: 3, concealed: false },
+    ];
+    (g as any).turn = 0;
+    (g as any).phase = 'awaiting-discard';
+    (g as any).drawnTile = null;
+    (g as any).discardsThisHand = 5;
+    expect(g.canSelfWin(0)).toBe(false);
+    const tile = me.concealed[0];
+    const entry = recordDiscard(g, tile, 3);
+    expect(entry.fb.shantenBefore).toBe(-1);
+    expect(entry.couldSelfWin).toBe(false);
+    expect(entry.fb.headline).toContain('Forced discard');
+
+    (g as any).phase = 'hand-end';
+    (g as any).handResult = {
+      winner: 1, from: 2, robbed: false,
+      score: { fan: 0, payout: 1, items: [], rawFan: 0, limit: false, decomp: null },
+      payments: [0, 1, -1, 0], winningTile: null, winnerHand: null,
+      seatWinds: ['E', 'S', 'W', 'N'],
+    };
+    const review = buildHandReview(g, [entry]);
+    expect(review.moments.some((m) => m.title.includes('discarded from a complete hand'))).toBe(false);
+  });
+
+  it('wait praise does not count the tile that just won the hand', () => {
+    const g = freshGame();
+    const me = g.players[0];
+    // ready, pair wait on chars-9; suppose 2 copies visible in discards,
+    // 1 just won the hand for Mei -> only 1 truly live... rig visibility:
+    me.concealed = ['dots-1', 'dots-2', 'dots-3', 'bamboo-4', 'bamboo-5', 'bamboo-6',
+      'chars-1', 'chars-2', 'chars-3', 'dots-7', 'dots-8', 'dots-9', 'chars-9'].map(t);
+    me.melds = [];
+    for (const p of g.players) {
+      p.discards = p.discards.filter((x) => x.kind !== 'chars-9');
+      p.concealed = p === me ? p.concealed : p.concealed.filter((x) => x.kind !== 'chars-9');
+    }
+    g.players[1].discards.push(t('chars-9'), t('chars-9')); // 2 visible
+    (g as any).phase = 'hand-end';
+    (g as any).handResult = {
+      winner: 1, from: 2, robbed: false,
+      score: { fan: 1, payout: 2, items: [], rawFan: 1, limit: false, decomp: null },
+      payments: [0, 2, -2, 0], winningTile: t('chars-9'), winnerHand: null,
+      seatWinds: ['E', 'S', 'W', 'N'],
+    };
+    // my hand holds 1, discards show 2, winner absorbed 1 -> 0 live copies
+    const review = buildHandReview(g, []);
+    const dead = review.moments.find((m) => m.title.includes('DEAD'));
+    expect(dead).toBeTruthy();
+  });
+
   it('builds reviews without throwing across simulated games with random human logs', () => {
     for (let seed = 30; seed < 36; seed++) {
       const g = new Game(seed);

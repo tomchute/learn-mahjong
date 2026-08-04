@@ -111,6 +111,22 @@ verified headless with the network cut:
   hand" on the hand-end screen; "Review last hand" in the menu until the
   next hand ends. Minor leaks capped at 3 + summary.
 
+- **Adversarial review round 2** (2026-08-01, owner request, 3 parallel
+  reviewers: gameplay completeness / silent bugs / mobile UX; 17 confirmed
+  findings, all verified by execution). Fixed: robbed-gong misattribution in
+  review+hand-end (HandResult.robbed), claim-past-win now coached and the
+  phantom "WIN button was lit" removed (couldSelfWin on log entries; forced-
+  discard wording), wait-praise no longer counts the winning tile, engine
+  validates human claims against offered options, stale double-tap claims
+  blocked, outranked-WIN explained, no gongs with an empty wall (RULES 5c),
+  stats fully wired (handsWon/bestFan/matchesPlayed at hand end), 320px
+  side-column overflow (8-back cap + count chip + contained melds), discard
+  zones scroll instead of clipping, bigger tap targets (opp-read chip, coach
+  toggle, explain button), onboarding compass step repositioned, flower-row
+  ownership styling, landscape rotate hint. Accepted: full landscape layout
+  (backlog), tablet sparseness, 21px rack slots at 320px, earthly-hand fan
+  in one rare passed-win counterfactual.
+
 ## Refinement backlog (prioritized, none started)
 
 1. **Match persistence/resume** — serialize seed + action log to

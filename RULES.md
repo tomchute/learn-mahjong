@@ -70,6 +70,10 @@ interpretation. Decisions made:
   dealer's untouched opening hand. A turn gained by claiming a pong/seung
   grants no draw: you must simply discard. (Without this, a claim could be
   laundered into a "self-draw" or into a gong's free replacement tile.)
+5c. **No gong with an empty wall** — a gong requires a replacement tile, so
+  none may be declared (or claimed from a discard) once the wall is empty.
+  Standard table rule; it also prevents a gong from ending the hand early
+  and skipping the final discard's claim window.
 6. **Eight flowers** — instant 8-fan win the moment the 8th flower is drawn;
   paid by all three opponents like a self-draw.
 7. **Heavenly hand** — dealer's opening 14 tiles are a win (no discard made).

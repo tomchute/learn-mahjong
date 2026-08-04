@@ -62,18 +62,29 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
   const efficient = after === bestAfter;
 
   if (before === -1) {
-    // they discarded from a COMPLETE hand — the worst possible mistake
+    // Complete hand. Two very different situations:
+    //  - they could have pressed WIN and didn't → the worst possible mistake
+    //  - the turn came from a claim (no draw), so no WIN existed → the
+    //    discard is FORCED; the mistake happened back at the claim.
+    if (game.canSelfWin(0)) {
+      return {
+        verdict: 'bad',
+        headline: 'You had a winning hand!',
+        details: [
+          'Your 14 tiles already formed 4 sets and a pair — press WIN 食糊 instead of discarding.',
+          'Keep an eye out: when the WIN button appears, your hand is complete.',
+        ],
+        shantenBefore: before, shantenAfter: after, bestAfter, bestKinds,
+      };
+    }
     return {
-      verdict: 'bad',
-      headline: 'You had a winning hand!',
+      verdict: 'ok',
+      headline: 'Forced discard from a complete hand.',
       details: [
-        'Your 14 tiles already formed 4 sets and a pair — press WIN 食糊 instead of discarding.',
-        'Keep an eye out: when the WIN button appears, your hand is complete.',
+        'Your tiles form a winning shape, but a turn gained by claiming has no draw — so no self-draw win exists, and you must discard.',
+        'The win chance was at the claim itself: when a discard both completes your hand and fits a meld, take the WIN, not the meld.',
       ],
-      shantenBefore: before,
-      shantenAfter: after,
-      bestAfter,
-      bestKinds,
+      shantenBefore: before, shantenAfter: after, bestAfter, bestKinds,
     };
   }
 

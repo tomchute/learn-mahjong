@@ -23,6 +23,8 @@ export interface DiscardLogEntry {
   melds: number;
   tile: TileKind;
   fb: DiscardFeedback;
+  /** the WIN button was actually available at this moment */
+  couldSelfWin: boolean;
   /** ready opponents (by player index) whose waits included the tile */
   dealtInto: number[];
   /** tiles you held that no ready opponent was waiting on (at that moment) */
@@ -83,6 +85,7 @@ export function recordDiscard(game: Game, tile: Tile, turn: number): DiscardLogE
     melds: me.melds.length,
     tile: tile.kind,
     fb,
+    couldSelfWin: game.canSelfWin(0),
     dealtInto,
     safeHeld,
     opponentsReady: [...new Set([...danger.values()].flat())],
@@ -103,8 +106,10 @@ export function recordClaim(
   const kinds = me.concealed.map((t) => t.kind);
   const before = kinds.length % 3 === 1 ? shanten(kinds, me.melds.length) : 99;
 
+  // ANY non-win action past an offered win is a missed win — passing it,
+  // or worse, claiming the same tile as a mere pong/gong/chow.
   let missedWinFan: number | null = null;
-  if (opts.win && action === 'pass') {
+  if (opts.win && action !== 'win') {
     const ctx: WinContext = {
       seatWind: game.seatWind(0), selfDraw: false,
       concealed: me.melds.every((m) => m.concealed),
@@ -170,9 +175,13 @@ export function buildHandReview(game: Game, log: HandLogEntry[]): HandReview {
     outcome = `${name(r.winner)} won — ${r.score!.fan} fan.`;
     outcomeDetail = r.from === null
       ? `${name(r.winner)} drew the winning tile themselves; everyone paid ${r.score!.payout} chips.`
-      : r.from === 0
-        ? `They won off YOUR discard — you paid the full ${r.score!.payout} chips.`
-        : `They won off ${name(r.from)}'s discard.`;
+      : r.robbed
+        ? r.from === 0
+          ? `They ROBBED your added gong — the 4th tile you added completed their hand, and you paid the full ${r.score!.payout} chips.`
+          : `They won by robbing ${name(r.from)}'s added gong.`
+        : r.from === 0
+          ? `They won off YOUR discard — you paid the full ${r.score!.payout} chips.`
+          : `They won off ${name(r.from)}'s discard.`;
   }
 
   const discards = log.filter((e): e is DiscardLogEntry => e.kind === 'discard');
@@ -202,17 +211,22 @@ export function buildHandReview(game: Game, log: HandLogEntry[]): HandReview {
   // ---- critical moments ----
   for (const c of claims) {
     if (c.missedWinFan !== null) {
+      const claimedInstead = c.action === 'pong' || c.action === 'gong' || c.action === 'chow';
       moments.push({
         severity: 'critical',
-        title: c.action === 'rob-pass' ? 'You declined to rob a gong — that was a win' : 'You passed a winning tile',
+        title: c.action === 'rob-pass' ? 'You declined to rob a gong — that was a win'
+          : claimedInstead ? `You claimed a ${c.action} on a tile that WON`
+          : 'You passed a winning tile',
         detail: `${tileName(c.tile)} completed your hand for ${c.missedWinFan} fan (${2 ** Math.min(c.missedWinFan, 13)} chips). ` +
-          'Winning immediately is almost always right — a bigger hand later usually never comes.',
+          (claimedInstead
+            ? 'When a discard both completes your hand and fits a meld, WIN outranks everything — the meld locks you out of the win (a claimed turn has no draw, so no self-draw exists).'
+            : 'Winning immediately is almost always right — a bigger hand later usually never comes.'),
         tiles: [c.tile],
       });
     }
   }
   for (const d of discards) {
-    if (d.fb.shantenBefore === -1) {
+    if (d.fb.shantenBefore === -1 && d.couldSelfWin) {
       moments.push({
         severity: 'critical',
         title: 'You discarded from a complete hand',
@@ -221,8 +235,18 @@ export function buildHandReview(game: Game, log: HandLogEntry[]): HandReview {
       });
     }
   }
-  // dealt into the winner?
-  if (r && r.winner !== null && r.winner !== 0 && r.from === 0) {
+  // the winner robbed YOUR added gong (not a discard — don't blame one)
+  if (r && r.winner !== null && r.winner !== 0 && r.from === 0 && r.robbed) {
+    moments.push({
+      severity: 'critical',
+      title: `${name(r.winner)} robbed your added gong`,
+      detail: `The 4th ${r.winningTile ? tileName(r.winningTile.kind) : 'tile'} you added to your pong was exactly ${name(r.winner)}'s winning tile. ` +
+        'Adding to a pong is the one move another player can steal a win from — when someone looks ready, the extra fan is rarely worth the robbery risk.',
+      tiles: r.winningTile ? [r.winningTile.kind] : undefined,
+    });
+  }
+  // dealt into the winner by discard?
+  if (r && r.winner !== null && r.winner !== 0 && r.from === 0 && !r.robbed) {
     const last = discards[discards.length - 1];
     if (last) {
       const safe = last.safeHeld.filter((k) => k !== last.tile).slice(0, 4);
@@ -243,7 +267,7 @@ export function buildHandReview(game: Game, log: HandLogEntry[]): HandReview {
     const loss = d.fb.shantenAfter - d.fb.bestAfter;
     if (d.fb.shantenBefore !== -1 && loss >= 1 && d.dealtInto.length === 0) {
       // don't double-report the deal-in discard
-      const isFinalDealIn = r?.from === 0 && d === discards[discards.length - 1];
+      const isFinalDealIn = r?.from === 0 && !r?.robbed && d === discards[discards.length - 1];
       if (!isFinalDealIn) {
         moments.push({
           severity: loss >= 2 ? 'major' : 'minor',
@@ -271,7 +295,13 @@ export function buildHandReview(game: Game, log: HandLogEntry[]): HandReview {
   // ---- dead wait detection at hand end ----
   if (finalShanten === 0 && r && r.winner !== 0) {
     const waits = winningTiles(finalKinds, me.melds.length);
-    const live = waits.map((w) => ({ w, n: unseenCount(game, w) }));
+    // the tile that just won moved into the winner's revealed hand, which
+    // unseenCount doesn't inspect — don't count it as "still out there"
+    const wonKind = r.winningTile?.kind ?? null;
+    const live = waits.map((w) => ({
+      w,
+      n: Math.max(0, unseenCount(game, w) - (w === wonKind ? 1 : 0)),
+    }));
     const totalLive = live.reduce((a, x) => a + x.n, 0);
     if (totalLive === 0) {
       moments.push({

@@ -180,9 +180,12 @@ function OpponentZone({ g: store, player, orientation, onRead }: {
         {readable && <span className="opp-read-icon">👁</span>}
       </div>
       <div className={`opp-tiles opp-tiles-${orientation}`}>
-        {Array.from({ length: n }, (_, i) => (
+        {/* side columns cap the tile backs so melds/flowers below never
+            overflow the column on short screens; the chip keeps the count */}
+        {Array.from({ length: orientation === 'top' ? n : Math.min(n, 8) }, (_, i) => (
           <Tile key={i} back size={orientation === 'top' ? 18 : 15} />
         ))}
+        {orientation !== 'top' && n > 8 && <span className="opp-more">+{n - 8}</span>}
       </div>
       {(p.melds.length > 0 || p.flowers.length > 0) && (
         <div className="opp-melds">
@@ -215,13 +218,17 @@ function DiscardZone({ store, player, zone }: { store: GameStore; player: number
   const g = store.game;
   const p = g.players[player];
   const last = g.lastDiscard;
+  // smaller tiles on narrow phones so late-hand discards stay visible
+  // (store bumps on resize, so this re-evaluates on rotation/resize)
+  const narrow = window.innerWidth <= 360;
+  const size = zone === 'left' || zone === 'right' ? (narrow ? 14 : 17) : (narrow ? 15 : 19);
   return (
     <div className={`discards discards-${zone}`}>
       {p.discards.map((t) => (
         <Tile
           key={t.id}
           kind={t.kind}
-          size={zone === 'left' || zone === 'right' ? 17 : 19}
+          size={size}
           highlight={last && last.tile.id === t.id ? 'discard' : null}
         />
       ))}

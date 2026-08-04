@@ -11,6 +11,23 @@ import { Onboarding, hasOnboarded } from './Onboarding';
 import { HandReviewModal } from './HandReviewModal';
 import { WIND_LABEL } from '../content/names';
 
+/**
+ * Landscape phones lack the vertical room the table needs (a full landscape
+ * layout is a known limitation) — nudge toward portrait, dismissably.
+ */
+function RotateHint() {
+  const [dismissed, setDismissed] = useState(false);
+  const cramped = window.innerHeight < 480 && window.innerWidth > window.innerHeight;
+  if (!cramped || dismissed) return null;
+  return (
+    <div className="rotate-hint">
+      <span className="rotate-hint-icon">📱</span>
+      <p>The mahjong table needs vertical room — rotate your phone upright for the full view.</p>
+      <button className="btn btn-secondary" onClick={() => setDismissed(true)}>Play sideways anyway</button>
+    </div>
+  );
+}
+
 /** two-tap confirmation (window.confirm is unreliable in webviews) */
 function NewMatchButton({ onConfirm }: { onConfirm: () => void }) {
   const [arming, setArming] = useState(false);
@@ -115,6 +132,7 @@ export default function App() {
       )}
       {g.phase === 'hand-end' && !onboarding && <HandEndModal store={store} />}
       {g.phase === 'match-end' && <MatchEndModal store={store} />}
+      <RotateHint />
     </div>
   );
 }

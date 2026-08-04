@@ -82,6 +82,8 @@ export class GameStore {
   /** review of the most recently finished hand */
   lastReview: HandReview | null = null;
   private reviewedHand = 0;
+  /** this match already counted in stats (set when the final hand ends) */
+  private matchCounted = false;
   private msgId = 1;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -115,6 +117,7 @@ export class GameStore {
     this.myDiscardCount = 0;
     this.lastReview = null;
     this.reviewedHand = 0;
+    this.matchCounted = false;
     this.started = true;
     this.game.startHand();
     const youDeal = this.game.dealer === 0;
@@ -177,6 +180,7 @@ export class GameStore {
 
   humanClaim(claim: 'win' | 'pong' | 'gong' | 'chow' | 'pass', chow?: ChowOption) {
     const g = this.game;
+    if (g.phase !== 'awaiting-claims') return; // stale tap after the window closed
     const opts = g.humanClaimOptions;
     const wasConcealed = g.players[0].melds.length === 0;
     const evCount = g.events.length;
@@ -186,7 +190,19 @@ export class GameStore {
     }
     g.humanClaim(claim, chow);
 
-    if (claim === 'pass' && opts?.win) {
+    if (opts?.win && (claim === 'pong' || claim === 'gong' || claim === 'chow')) {
+      this.say('bad', `You claimed a ${claim === 'chow' ? 'seung' : claim} on your WINNING tile!`, [
+        'That tile completed your whole hand — WIN beats every meld. The meld locks you out: a claimed turn has no draw, so no self-draw win exists now.',
+      ]);
+    } else if (claim === 'win' && opts?.win) {
+      // did the human actually win, or was a nearer winner ahead of them?
+      const winEv = g.events.slice(evCount).find((e) => e.type === 'win');
+      if (winEv && winEv.type === 'win' && winEv.player !== 0) {
+        this.say('info', 'Your WIN was outranked by a nearer winner.', [
+          `${g.players[winEv.player].name} could also win on that tile, and they sit closer after the discarder — when two players can win the same discard, the nearest in turn order takes it. Nothing you could do.`,
+        ]);
+      }
+    } else if (claim === 'pass' && opts?.win) {
       this.say('bad', 'You passed on a WINNING tile!', [
         'That tile completed your hand — claiming it would have won the hand. Winning beats every other option.',
       ]);
@@ -261,10 +277,6 @@ export class GameStore {
     g.proceed();
     if (!willEnd) {
       this.say('info', `Hand ${g.handNumber}: ${seatLabel(g.roundWind)} round. You are ${seatLabel(g.seatWind(0))}${g.dealer === 0 ? ' — you deal (14 tiles, discard first)' : ''}.`);
-    } else {
-      const stats = loadStats();
-      stats.matchesPlayed++;
-      saveStats(stats);
     }
     this.narrateNewEvents();
     this.bump();
@@ -296,8 +308,22 @@ export class GameStore {
     let changed = false;
     for (; this.narrated < evs.length; this.narrated++) {
       const e = evs[this.narrated];
+      if (e.type === 'win' && e.player === 0) {
+        const stats = loadStats();
+        stats.handsWon++;
+        stats.bestFan = Math.max(stats.bestFan, e.score.fan);
+        saveStats(stats);
+      }
       const msg = this.describeEvent(e);
       if (msg) { this.say(msg.tone, msg.text, msg.details); changed = true; }
+    }
+    // count the match as played the moment its final hand ends (not only if
+    // the user clicks through to the results screen)
+    if (g.phase === 'hand-end' && g.matchWillEnd && !this.matchCounted) {
+      this.matchCounted = true;
+      const stats = loadStats();
+      stats.matchesPlayed++;
+      saveStats(stats);
     }
     // status prompts after narration
     if (g.phase === 'awaiting-claims' && g.humanClaimOptions) {
