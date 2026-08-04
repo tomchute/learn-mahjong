@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameStore } from '../store';
 import { Tile } from './Tile';
 import { MeldView } from './Table';
@@ -6,11 +6,14 @@ import { WIND_LABEL } from '../content/names';
 import { explainWinStructure } from '../engine/explain';
 import { WinDecomp } from '../engine/hand';
 import { Tile as TileT, Meld } from '../engine/types';
+import { HandReviewModal } from './HandReviewModal';
 
 /** End-of-hand screen: winning hand, fan breakdown, payments. */
 export function HandEndModal({ store }: { store: GameStore }) {
   const g = store.game;
   const r = g.handResult;
+  const [showReview, setShowReview] = useState(false);
+  const review = store.getHandReview();
   if (!r) return null;
 
   return (
@@ -95,9 +98,15 @@ export function HandEndModal({ store }: { store: GameStore }) {
           </tbody>
         </table>
 
+        <button className="btn btn-review" onClick={() => setShowReview(true)}>
+          🔍 Review hand — what could you have done?
+        </button>
         <button className="btn btn-primary" onClick={() => store.proceed()}>
           {g.matchWillEnd ? 'See final results' : 'Next hand'}
         </button>
+        {showReview && review && (
+          <HandReviewModal review={review} onClose={() => setShowReview(false)} />
+        )}
       </div>
     </div>
   );

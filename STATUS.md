@@ -99,6 +99,17 @@ verified headless with the network cut:
   explanation of the player's own hand, button next to the coach header.
 - Tutorial: pair-claim clarification (eyes can't be claimed except as the
   winning tile).
+- **Scoring table example hands** — every pattern fan shows real tiles;
+  tests/examples.test.ts scores each example through the engine so the
+  reference can't mis-teach.
+- **Post-hand review** (owner request: "hands end fast, what went wrong?") —
+  `src/engine/review.ts` records every human decision (store.handLog) and
+  builds a ranked review at hand end: passed wins, deal-ins (with the safe
+  tiles held at that instant), tempo losses (with the better discard),
+  missed claims, dead waits, plus praise and one takeaway. Counterfactuals
+  are moment-scoped on purpose — never "you would have won". UI: "Review
+  hand" on the hand-end screen; "Review last hand" in the menu until the
+  next hand ends. Minor leaks capped at 3 + summary.
 
 ## Refinement backlog (prioritized, none started)
 

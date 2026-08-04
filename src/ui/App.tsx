@@ -8,6 +8,7 @@ import { HandEndModal } from './HandEndModal';
 import { MatchEndModal } from './MatchEndModal';
 import { StartScreen } from './StartScreen';
 import { Onboarding, hasOnboarded } from './Onboarding';
+import { HandReviewModal } from './HandReviewModal';
 import { WIND_LABEL } from '../content/names';
 
 /** two-tap confirmation (window.confirm is unreliable in webviews) */
@@ -29,6 +30,7 @@ export default function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const g = store.game;
 
   if (!store.started) {
@@ -86,6 +88,14 @@ export default function App() {
                 <option value="fast">Fast</option>
               </select>
             </label>
+            {store.lastReview && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setReviewOpen(true); setMenuOpen(false); }}
+              >
+                🔍 Review last hand
+              </button>
+            )}
             <NewMatchButton
               onConfirm={() => { store.startMatch(); setMenuOpen(false); }}
             />
@@ -100,6 +110,9 @@ export default function App() {
 
       {tutorialOpen && <TutorialModal onClose={() => setTutorialOpen(false)} />}
       {onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
+      {reviewOpen && store.lastReview && (
+        <HandReviewModal review={store.lastReview} onClose={() => setReviewOpen(false)} />
+      )}
       {g.phase === 'hand-end' && !onboarding && <HandEndModal store={store} />}
       {g.phase === 'match-end' && <MatchEndModal store={store} />}
     </div>

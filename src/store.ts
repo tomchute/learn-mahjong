@@ -7,6 +7,7 @@ import { shanten as shantenFn } from './engine/hand';
 import {
   opponentProfile, dangerTiles, myWaitAnalysis, provablySafeKinds, OpponentProfile,
 } from './engine/insight';
+import { recordDiscard, recordClaim, buildHandReview, HandLogEntry, HandReview } from './engine/review';
 import { pickRandomSeed } from './engine/rng';
 import { Tile, TileKind } from './engine/types';
 import { tileName } from './content/names';
@@ -75,6 +76,12 @@ export class GameStore {
   /** per-opponent tactics state already announced this hand */
   private announced: Record<number, { melds: number; ready: boolean }> = {};
   private announcedMyReady = false;
+  /** decision log for the current hand (feeds the post-hand review) */
+  private handLog: HandLogEntry[] = [];
+  private myDiscardCount = 0;
+  /** review of the most recently finished hand */
+  lastReview: HandReview | null = null;
+  private reviewedHand = 0;
   private msgId = 1;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -104,6 +111,10 @@ export class GameStore {
     this.hint = null;
     this.announced = {};
     this.announcedMyReady = false;
+    this.handLog = [];
+    this.myDiscardCount = 0;
+    this.lastReview = null;
+    this.reviewedHand = 0;
     this.started = true;
     this.game.startHand();
     const youDeal = this.game.dealer === 0;
@@ -138,21 +149,23 @@ export class GameStore {
     const g = this.game;
     if (g.phase !== 'awaiting-discard' || g.turn !== 0) return;
     this.hint = null;
-    const fb = this.settings.coachEnabled ? evaluateDiscard(g, tile) : null;
+    // record for the post-hand review (always, even with the coach off)
+    const entry = recordDiscard(g, tile, ++this.myDiscardCount);
+    this.handLog.push(entry);
+    const fb = entry.fb;
     // defense credit: measured BEFORE the discard resolves
     let defenseNote: string | null = null;
     if (this.settings.coachEnabled) {
-      const danger = dangerTiles(g);
       const myShBefore = shantenFn(
         g.players[0].concealed.filter((t) => t.id !== tile.id).map((t) => t.kind),
         g.players[0].melds.length,
       );
-      if (danger.size > 0 && !danger.has(tile.kind) && myShBefore >= 2) {
+      if (entry.opponentsReady.length > 0 && entry.dealtInto.length === 0 && myShBefore >= 2) {
         defenseNote = 'Good defensive instinct: an opponent is ready, your hand is far behind, and that tile doesn\'t complete their wait.';
       }
     }
     g.discard(tile.id);
-    if (fb) {
+    if (this.settings.coachEnabled) {
       this.lastFeedback = fb;
       const details = defenseNote ? [...fb.details, defenseNote] : fb.details;
       this.say(fb.verdict === 'good' ? 'good' : fb.verdict === 'ok' ? 'ok' : fb.verdict === 'risky' ? 'risky' : 'bad',
@@ -167,6 +180,10 @@ export class GameStore {
     const opts = g.humanClaimOptions;
     const wasConcealed = g.players[0].melds.length === 0;
     const evCount = g.events.length;
+    // record for the post-hand review before the claim mutates state
+    if (opts && g.lastDiscard) {
+      this.handLog.push(recordClaim(g, opts, g.lastDiscard.tile, claim, chow, this.myDiscardCount, g.isRobbingPrompt));
+    }
     g.humanClaim(claim, chow);
 
     if (claim === 'pass' && opts?.win) {
@@ -222,12 +239,25 @@ export class GameStore {
     this.bump();
   }
 
+  /** Review of the just-finished hand (computed once per hand, kept until the next one ends). */
+  getHandReview(): HandReview | null {
+    const g = this.game;
+    if (g.phase === 'hand-end' && this.reviewedHand !== g.handNumber) {
+      this.lastReview = buildHandReview(g, this.handLog);
+      this.reviewedHand = g.handNumber;
+    }
+    return this.lastReview;
+  }
+
   proceed() {
     const g = this.game;
     if (g.phase !== 'hand-end') return;
     const willEnd = g.matchWillEnd;
+    this.getHandReview(); // snapshot the review before state resets
     this.announced = {};
     this.announcedMyReady = false;
+    this.handLog = [];
+    this.myDiscardCount = 0;
     g.proceed();
     if (!willEnd) {
       this.say('info', `Hand ${g.handNumber}: ${seatLabel(g.roundWind)} round. You are ${seatLabel(g.seatWind(0))}${g.dealer === 0 ? ' — you deal (14 tiles, discard first)' : ''}.`);

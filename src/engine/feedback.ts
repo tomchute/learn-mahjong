@@ -16,6 +16,10 @@ export interface DiscardFeedback {
   details: string[];
   shantenBefore: number;
   shantenAfter: number;
+  /** best achievable shanten over all possible discards at this moment */
+  bestAfter: number;
+  /** the discards that achieve bestAfter */
+  bestKinds: TileKind[];
 }
 
 /**
@@ -68,6 +72,8 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
       ],
       shantenBefore: before,
       shantenAfter: after,
+      bestAfter,
+      bestKinds,
     };
   }
 
@@ -106,7 +112,7 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
     }
   }
 
-  return { verdict, headline, details, shantenBefore: before, shantenAfter: after };
+  return { verdict, headline, details, shantenBefore: before, shantenAfter: after, bestAfter, bestKinds };
 }
 
 export function describeShanten(sh: number): string {
