@@ -141,8 +141,16 @@ function scoreDecomp(
     items.push({ name: 'Pure terminals', cantonese: 'ching yiu gau 清幺九', fan: 10, detail: 'Every tile is a 1 or a 9.' });
   }
 
+  // Named hands subsume their component sets: a dragon pong inside Great
+  // Dragons is not ALSO worth its 1 fan (the booklet's "points stack" is
+  // about combining different achievements, not double-counting one).
+  const greatDragons = decomp.kind === 'standard' && dragonPongs.length === 3;
+  const smallDragons = decomp.kind === 'standard' && dragonPongs.length === 2 && !!eyes && isDragonKind(eyes!);
+  const smallWinds = decomp.kind === 'standard' && windPongs.length === 3 && !!eyes && isWindKind(eyes!);
+  const allHonours = allTileKinds.every(isHonor);
+
   // ---- 8 fan ----
-  if (decomp.kind === 'standard' && dragonPongs.length === 3) {
+  if (greatDragons) {
     items.push({ name: 'Great dragons', cantonese: 'dai saam yuen 大三元', fan: 8, detail: 'Pongs of all three dragons.' });
   }
   if (ctx.afterDoubleGong) {
@@ -163,12 +171,12 @@ function scoreDecomp(
   }
 
   // ---- 6 fan: small winds (3 wind pongs + wind eyes) ----
-  if (decomp.kind === 'standard' && windPongs.length === 3 && eyes && isWindKind(eyes)) {
+  if (smallWinds) {
     items.push({ name: 'Small winds', cantonese: 'siu sei hei 小四喜', fan: 6, detail: 'Pongs of three winds and a pair of the fourth.' });
   }
 
   // ---- 5 fan: small dragons (2 dragon pongs + dragon eyes) ----
-  if (decomp.kind === 'standard' && dragonPongs.length === 2 && eyes && isDragonKind(eyes)) {
+  if (smallDragons) {
     items.push({ name: 'Small dragons', cantonese: 'siu saam yuen 小三元', fan: 5, detail: 'Pongs of two dragons and a pair of the third.' });
   }
 
@@ -190,12 +198,16 @@ function scoreDecomp(
     items.push({ name: 'Mixed terminals', cantonese: 'wun yiu gau 混幺九', fan: 1, detail: 'Only 1s, 9s and honour tiles.' });
   }
 
-  for (const s of dragonPongs) {
-    items.push({ name: `Dragon pong (${dragonName(s.kind0)})`, cantonese: 'faan pai 番牌', fan: 1, detail: 'A triplet of a dragon.' });
+  if (!greatDragons && !smallDragons && !allHonours) {
+    for (const s of dragonPongs) {
+      items.push({ name: `Dragon pong (${dragonName(s.kind0)})`, cantonese: 'faan pai 番牌', fan: 1, detail: 'A triplet of a dragon.' });
+    }
   }
-  for (const s of windPongs) {
-    if (windOf(s.kind0) === ctx.seatWind) {
-      items.push({ name: `Seat wind pong (${windName(s.kind0)})`, cantonese: 'faan pai 番牌', fan: 1, detail: 'A triplet of your own seat wind.' });
+  if (!smallWinds && !allHonours) {
+    for (const s of windPongs) {
+      if (windOf(s.kind0) === ctx.seatWind) {
+        items.push({ name: `Seat wind pong (${windName(s.kind0)})`, cantonese: 'faan pai 番牌', fan: 1, detail: 'A triplet of your own seat wind.' });
+      }
     }
   }
 

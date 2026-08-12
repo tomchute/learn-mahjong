@@ -282,6 +282,35 @@ describe('game state machine fuzz', () => {
     return n;
   }
 
+  /**
+   * Per-kind conservation: at any moment, every playable kind must appear
+   * EXACTLY 4 times and every flower exactly once across all zones — a 5th
+   * copy of anything is impossible with real tiles and must be here too.
+   */
+  function checkKindCounts(g: Game, label: string): void {
+    const counts = new Map<string, number>();
+    const add = (kind: string) => counts.set(kind, (counts.get(kind) ?? 0) + 1);
+    for (const p of g.players) {
+      for (const t of p.concealed) add(t.kind);
+      for (const m of p.melds) for (const t of m.tiles) add(t.kind);
+      for (const t of p.flowers) add(t.kind);
+      for (const t of p.discards) add(t.kind);
+    }
+    for (const t of (g.wall as any).tiles as Tile[]) add(t.kind);
+    const pag = (g as any).pendingAddedGong;
+    if (pag) add(pag.tile.kind);
+
+    for (const [kind, n] of counts) {
+      const expected = kind.startsWith('flower-') ? 1 : 4;
+      if (n !== expected) {
+        throw new Error(`${label}: kind ${kind} has ${n} copies (expected ${expected})`);
+      }
+    }
+    if (counts.size !== 34 + 8) {
+      throw new Error(`${label}: ${counts.size} distinct kinds (expected 42)`);
+    }
+  }
+
   it('all-AI matches: many seeds, invariants each hand', () => {
     for (let seed = 100; seed < 112; seed++) {
       const g = new Game(seed);
@@ -297,6 +326,7 @@ describe('game state machine fuzz', () => {
           if (++steps > 3000) throw new Error(`seed ${seed}: hand did not terminate`);
         }
         expect(countAllTiles(g), `seed ${seed} tile conservation`).toBe(144);
+        checkKindCounts(g, `seed ${seed} hand ${hands}`);
         hands++;
         if (hands > 300) throw new Error(`seed ${seed}: match did not terminate`);
         g.proceed();
@@ -354,6 +384,7 @@ describe('game state machine fuzz', () => {
           }
           const total = countAllTiles(g);
           if (total !== 144) throw new Error(`seed ${seed}: tiles=${total} phase=${g.phase}`);
+          if (steps % 25 === 0) checkKindCounts(g, `seed ${seed} step ${steps}`);
         }
         hands++;
         g.proceed();

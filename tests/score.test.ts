@@ -126,8 +126,10 @@ describe('scoring per the booklet', () => {
     ];
     const rs = scoreHand(small, [], ['flower-2'], baseCtx);
     expect(rs.items.some((i) => i.name === 'Small dragons')).toBe(true);
-    // 5 (small dragons) + 2 dragon pongs = 7
-    expect(rs.fan).toBe(7);
+    // exactly 5: the two dragon pongs are components of the named hand,
+    // not separately stackable fan
+    expect(rs.fan).toBe(5);
+    expect(rs.items.some((i) => i.name.startsWith('Dragon pong'))).toBe(false);
 
     const great = [
       'dragon-R', 'dragon-R', 'dragon-R',
@@ -138,8 +140,40 @@ describe('scoring per the booklet', () => {
     ];
     const rg = scoreHand(great, [], ['flower-2'], baseCtx);
     expect(rg.items.some((i) => i.name === 'Great dragons')).toBe(true);
-    // 8 + 3 dragon pongs = 11
-    expect(rg.fan).toBe(11);
+    // exactly 8: no double-counting the three dragon pongs
+    expect(rg.fan).toBe(8);
+    expect(rg.items.some((i) => i.name.startsWith('Dragon pong'))).toBe(false);
+  });
+
+  it('small winds and all honours also subsume their component sets', () => {
+    const smallWindsHand = [
+      'wind-E', 'wind-E', 'wind-E',
+      'wind-S', 'wind-S', 'wind-S',
+      'wind-W', 'wind-W', 'wind-W',
+      'dots-3', 'dots-4', 'dots-5',
+      'wind-N', 'wind-N',
+    ];
+    const rw = scoreHand(smallWindsHand, [], ['flower-2'], { ...baseCtx, seatWind: 'E' });
+    expect(rw.items.some((i) => i.name === 'Small winds')).toBe(true);
+    // no +1 for the seat-wind pong (component of the named hand)…
+    expect(rw.items.some((i) => i.name.startsWith('Seat wind pong'))).toBe(false);
+    // …but Mixed one suit (+3) is a DIFFERENT achievement and stacks: 6+3
+    expect(rw.items.some((i) => i.name === 'Mixed one suit')).toBe(true);
+    expect(rw.fan).toBe(9);
+
+    const allHonoursHand = [
+      'wind-E', 'wind-E', 'wind-E',
+      'wind-S', 'wind-S', 'wind-S',
+      'dragon-R', 'dragon-R', 'dragon-R',
+      'dragon-G', 'dragon-G', 'dragon-G',
+      'wind-N', 'wind-N',
+    ];
+    const rh = scoreHand(allHonoursHand, [], ['flower-2'], { ...baseCtx, seatWind: 'E' });
+    expect(rh.items.some((i) => i.name === 'All honours')).toBe(true);
+    expect(rh.items.some((i) => i.name.startsWith('Dragon pong'))).toBe(false);
+    expect(rh.items.some((i) => i.name.startsWith('Seat wind pong'))).toBe(false);
+    // exactly 10 — not inflated to the limit by component stacking
+    expect(rh.fan).toBe(10);
   });
 
   it('seven pairs = 7 fan', () => {

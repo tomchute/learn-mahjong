@@ -38,10 +38,17 @@ here.
 | 10 | All honours · pure terminals |
 | 13 (limit, non-stacking) | Heavenly hand · earthly hand · great winds · thirteen orphans |
 
-All fan stack except the 13-fan limit hands. When "concealed all triplets"
-applies, the subsumed "all triplets" and "concealed hand" fans are not
-double-counted; likewise "all honours"/"pure terminals" subsume "all
-triplets" stacking is suppressed for the pong fan only where noted in code.
+All fan stack except the 13-fan limit hands — but a named hand never
+re-counts its own components ("points stack" means combining different
+achievements, not counting one twice):
+
+- Great/Small dragons subsume their dragon-pong fans; Small winds subsumes
+  its seat-wind-pong fan; All honours subsumes all honour-set fans.
+- "Concealed all triplets" subsumes "all triplets" and "concealed hand";
+  "All honours"/"Pure terminals" subsume "all triplets".
+- Genuinely separate achievements DO stack: e.g. Small winds + Mixed one
+  suit = 6+3, Pure one suit + Common hand = 7+1, and event fans
+  (self-draw, gongs, flowers, last tile…) stack with everything.
 
 ## Interpretation decisions
 
