@@ -219,7 +219,9 @@ function scoreDecomp(
     items.push({ name: 'Common hand', cantonese: 'ping wu 平糊', fan: 1, detail: 'Every set is a run of ascending numbers.' });
   }
 
-  if (ctx.concealed && !concealedAllPongs) items.push({ name: 'Concealed hand', cantonese: 'mun ching 门前清', fan: 1, detail: 'No sets claimed from discards before winning.' });
+  // Seven pairs is concealed by definition (a claim breaks the shape), so
+  // the concealed-hand fan is one of its components — subsumed, not stacked.
+  if (ctx.concealed && !concealedAllPongs && decomp.kind !== 'sevenPairs') items.push({ name: 'Concealed hand', cantonese: 'mun ching 门前清', fan: 1, detail: 'No sets claimed from discards before winning.' });
   if (ctx.selfDraw) items.push({ name: 'Self draw', cantonese: 'zi mo 自摸', fan: 1, detail: 'Drew the winning tile yourself.' });
   if (ctx.robbingGong) items.push({ name: 'Robbing the gong', cantonese: 'cheung gong 搶槓', fan: 1, detail: 'Won on a tile someone added to a gong.' });
   if (ctx.afterGong && !ctx.afterDoubleGong) items.push({ name: 'Win after gong', cantonese: 'gong seung zi mo 槓上自摸', fan: 1, detail: 'Won on the replacement tile after a gong.' });

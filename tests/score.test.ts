@@ -182,8 +182,12 @@ describe('scoring per the booklet', () => {
       'chars-7', 'chars-7', 'wind-E', 'wind-E', 'wind-N', 'wind-N',
       'dragon-G', 'dragon-G',
     ];
-    const r = scoreHand(hand, [], ['flower-2'], baseCtx);
+    // a real seven-pairs win is always concealed — that fan is part of the
+    // named hand, not stacked on top (user-reported: 7+1=8 double-count)
+    const r = scoreHand(hand, [], ['flower-2'], { ...baseCtx, concealed: true });
     expect(r.items.some((i) => i.name === 'Seven pairs')).toBe(true);
+    expect(r.items.some((i) => i.name === 'Concealed hand')).toBe(false);
+    expect(r.fan).toBe(7);
   });
 
   it('thirteen orphans is a 13-fan limit hand', () => {

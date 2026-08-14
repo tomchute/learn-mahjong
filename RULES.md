@@ -46,6 +46,8 @@ achievements, not counting one twice):
   its seat-wind-pong fan; All honours subsumes all honour-set fans.
 - "Concealed all triplets" subsumes "all triplets" and "concealed hand";
   "All honours"/"Pure terminals" subsume "all triplets".
+- "Seven pairs" subsumes "concealed hand" — the shape is concealed by
+  definition (any claim breaks it), so the fan isn't counted twice.
 - Genuinely separate achievements DO stack: e.g. Small winds + Mixed one
   suit = 6+3, Pure one suit + Common hand = 7+1, and event fans
   (self-draw, gongs, flowers, last tile…) stack with everything.
