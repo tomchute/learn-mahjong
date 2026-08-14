@@ -7,6 +7,7 @@ import {
 } from './hand';
 import { Game } from './game';
 import { flowerSeatNumber, seatNumber } from './score';
+import { detectPlans, annotateWaits, waitLine, waitWarnings } from './planner';
 import { tileName } from '../content/names';
 
 /**
@@ -298,7 +299,10 @@ export function explainMyHand(game: Game): HandExplanation | null {
 
   if (overall <= 0) {
     const waits = winningTiles(kinds, meldCount);
-    if (waits.length) details.push(`Win on: ${waits.map(tileName).join(' or ')} — claim it from a discard or draw it yourself.`);
+    if (waits.length) {
+      details.push(`Win on: ${waitLine(annotateWaits(game, waits))} — claim it from a discard or draw it yourself.`);
+      details.push(...waitWarnings(game, waits));
+    }
   }
 
   if (toShanten < st.shanten && toShanten < spShanten) {
@@ -365,26 +369,12 @@ function bestDiscard(kinds: TileKind[], meldCount: number): { kind: TileKind; re
 function fanOpportunities(game: Game, kinds: TileKind[], meldCount: number, specialRoute: boolean): string[] {
   const p = game.players[0];
   const out: string[] = [];
-  const allKinds = kinds.slice();
-  for (const m of p.melds) for (const t of m.tiles) allKinds.push(t.kind);
 
-  // one-suit hands
-  const bySuit: Record<string, number> = { dots: 0, bamboo: 0, chars: 0 };
-  let honors = 0;
-  for (const k of allKinds) {
-    const s = suitOf(k);
-    if (s) bySuit[s]++;
-    else if (isHonor(k)) honors++;
-  }
-  const domSuit = (Object.keys(bySuit) as (keyof typeof bySuit)[]).reduce((a, b) => (bySuit[a] >= bySuit[b] ? a : b));
-  const offSuit = allKinds.length - bySuit[domSuit] - honors;
+  // advanced shapes within reach (flushes / seven pairs / all pongs), with
+  // concrete counts — the planner reads the live 13/14-tile hand
   if (!specialRoute) {
-    if (offSuit === 0 && honors === 0) {
-      out.push(`Every tile is ${SUIT_WORD[domSuit]} — finish like this for Pure one suit 清一色, a huge 7 fan!`);
-    } else if (offSuit === 0 && bySuit[domSuit] >= 6) {
-      out.push(`All your tiles are ${SUIT_WORD[domSuit]} + honours — on track for Mixed one suit 混一色 (3 fan).`);
-    } else if (offSuit > 0 && offSuit <= 2 && bySuit[domSuit] >= 8) {
-      out.push(`You're nearly all ${SUIT_WORD[domSuit]}: shed the ${offSuit} off-suit tile${offSuit > 1 ? 's' : ''} and Mixed one suit (3 fan) opens up.`);
+    for (const plan of detectPlans(game).slice(0, 2)) {
+      out.push(plan.detail);
     }
   }
 
@@ -402,16 +392,6 @@ function fanOpportunities(game: Game, kinds: TileKind[], meldCount: number, spec
       out.push(`Banked: your triplet of ${tileName(k)} is a guaranteed +1 fan (${label} pong).`);
     } else if (counts[i] === 2) {
       out.push(`Your pair of ${tileName(k)} is one tile from a ${label} pong — pong it or draw it for +1 fan.`);
-    }
-  }
-
-  // all pongs
-  const anyRun = p.melds.some((m) => m.type === 'chow');
-  if (!specialRoute && !anyRun) {
-    const st = bestStructure(counts, meldCount);
-    const tripletCount = st.sets.filter((s) => s.type === 'pong').length + meldCount;
-    if (st.sets.every((s) => s.type === 'pong') && tripletCount >= 2 && st.partials.every((pt) => pt.kinds[0] === pt.kinds[1])) {
-      out.push('No runs so far — if every set ends up a triplet, All pongs 对对糊 adds 3 fan.');
     }
   }
 

@@ -1,6 +1,8 @@
-import { TileKind, Tile, toCounts, KIND_INDEX, isHonor } from './types';
+import { TileKind, Tile, toCounts, KIND_INDEX } from './types';
 import { shanten, winningTiles } from './hand';
 import { Game } from './game';
+import { detectPlans, annotateWaits, waitLine, waitWarnings, Plan } from './planner';
+import { dangerTiles } from './insight';
 import { tileName } from '../content/names';
 
 /**
@@ -90,9 +92,27 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
 
   if (after === 0) {
     const waits = winningTiles(kindsAfter, melds);
-    headline = 'You are ready to win! 聽牌';
-    details.push(`You can now win on: ${waits.map(tileName).join(', ')}.`);
-    verdict = 'good';
+    const notes = annotateWaits(game, waits);
+    const live = notes.reduce((a, w) => a + w.unseen, 0);
+    headline = live === 0 ? 'Ready — but your wait is dead!' : 'You are ready to win! 聽牌';
+    details.push(`You can now win on: ${waitLine(notes)}.`);
+    details.push(...waitWarnings(game, waits));
+    verdict = live === 0 ? 'risky' : 'good';
+    // master note: was there an equally-fast discard with a wider LIVE wait?
+    if (bestAfter === 0) {
+      let alt: { kind: TileKind; live: number; line: string } | null = null;
+      for (const k of bestKinds) {
+        if (k === tile.kind) continue;
+        const rest = kindsBefore.slice();
+        rest.splice(rest.indexOf(k), 1);
+        const altNotes = annotateWaits(game, winningTiles(rest, melds));
+        const altLive = altNotes.reduce((a, w) => a + w.unseen, 0);
+        if (!alt || altLive > alt.live) alt = { kind: k, live: altLive, line: waitLine(altNotes) };
+      }
+      if (alt && alt.live > live && (live === 0 || alt.live - live >= 2)) {
+        details.push(`Master note: discarding ${tileName(alt.kind)} instead also makes you ready, with more live tiles to win on — ${alt.line}.`);
+      }
+    }
   } else if (efficient) {
     headline = after < 2 ? 'Good discard — almost there.' : 'Fine discard.';
     details.push(`You are ${describeShanten(after)}.`);
@@ -104,6 +124,20 @@ export function evaluateDiscard(game: Game, tile: Tile): DiscardFeedback {
       `but discarding ${bestKinds.slice(0, 2).map(tileName).join(' or ')} would leave you ${describeShanten(bestAfter)}.`,
     );
     verdict = after - bestAfter >= 2 ? 'bad' : 'risky';
+  }
+
+  // Plan awareness: a "slow" discard that sheds an off-plan tile while a
+  // high-value shape is live isn't a mistake — it's trading speed for value.
+  if ((verdict === 'risky' || verdict === 'bad') && after - bestAfter <= 2) {
+    const plan = detectPlans(game).find((pl) => pl.strong && pl.offPlan.includes(tile.kind));
+    if (plan) {
+      verdict = 'ok';
+      headline = 'Trading speed for value.';
+      details.unshift(
+        `This slows your fastest route, but ${tileName(tile.kind)} doesn't fit your ${plan.shortName} plan (${plan.fan} fan) — ` +
+        'shedding it keeps the big hand alive. A deliberate master trade.',
+      );
+    }
   }
 
   // Danger analysis: does this tile help an opponent right now?
@@ -139,13 +173,24 @@ export interface Hint {
   reason: string;
 }
 
-export function suggestDiscard(game: Game): Hint | null {
+export function suggestDiscard(game: Game, opts: { avoidDanger?: boolean } = {}): Hint | null {
   const p = game.players[0];
   if (p.concealed.length % 3 !== 2) return null;
   const kinds = p.concealed.map((t) => t.kind);
   const melds = p.melds.length;
+  const danger = opts.avoidDanger ? dangerTiles(game) : new Map();
+  const topPlan: Plan | undefined = detectPlans(game).find((pl) => pl.strong);
 
-  let best: { kind: TileKind; sh: number; waits: number } | null = null;
+  interface Cand {
+    kind: TileKind;
+    sh: number;
+    /** total unseen copies across all waits (only meaningful at sh 0) */
+    live: number;
+    line: string;
+    dangerous: boolean;
+    offPlan: boolean;
+  }
+  const cands: Cand[] = [];
   const tried = new Set<TileKind>();
   for (const k of kinds) {
     if (tried.has(k)) continue;
@@ -153,16 +198,41 @@ export function suggestDiscard(game: Game): Hint | null {
     const rest = kinds.slice();
     rest.splice(rest.indexOf(k), 1);
     const sh = shanten(rest, melds);
-    const waits = sh === 0 ? winningTiles(rest, melds).length : 0;
-    if (!best || sh < best.sh || (sh === best.sh && waits > best.waits)) {
-      best = { kind: k, sh, waits };
+    let live = 0;
+    let line = '';
+    if (sh === 0) {
+      const notes = annotateWaits(game, winningTiles(rest, melds));
+      live = notes.reduce((a, w) => a + w.unseen, 0);
+      line = waitLine(notes);
     }
+    cands.push({
+      kind: k, sh, live, line,
+      dangerous: danger.has(k),
+      offPlan: !!topPlan && topPlan.offPlan.includes(k),
+    });
   }
-  if (!best) return null;
-  const tile = p.concealed.find((t) => t.kind === best!.kind)!;
-  const reason =
+  if (!cands.length) return null;
+
+  // Master ordering: fastest first; among equals never deal into a waiting
+  // opponent; then the wait with the most LIVE tiles; then shed off-plan
+  // tiles so the high-value shape survives.
+  const rank = (a: Cand, b: Cand) =>
+    a.sh - b.sh || Number(a.dangerous) - Number(b.dangerous) || b.live - a.live ||
+    Number(b.offPlan) - Number(a.offPlan);
+  const best = cands.slice().sort(rank)[0];
+  // what we'd have picked ignoring danger — to explain the detour
+  const raw = cands.slice().sort((a, b) => a.sh - b.sh || b.live - a.live || Number(b.offPlan) - Number(a.offPlan))[0];
+
+  const tile = p.concealed.find((t) => t.kind === best.kind)!;
+  let reason =
     best.sh === 0
-      ? `Discarding ${tileName(best.kind)} makes you ready to win.`
+      ? `Discarding ${tileName(best.kind)} makes you ready to win — waiting on ${best.line}.`
       : `Discarding ${tileName(best.kind)} keeps you ${describeShanten(best.sh)} — your other tiles work better together.`;
+  if (best.sh > 0 && best.offPlan && topPlan) {
+    reason += ` It also sheds an off-plan tile, keeping your ${topPlan.shortName} plan (${topPlan.fan} fan) alive.`;
+  }
+  if (raw.kind !== best.kind && raw.dangerous) {
+    reason += ` (${tileName(raw.kind)} looks just as fast, but it deals straight into a waiting opponent right now.)`;
+  }
   return { tileId: tile.id, kind: best.kind, reason };
 }

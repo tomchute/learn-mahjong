@@ -1,6 +1,6 @@
 # STATUS — product & engineering state
 
-Last updated: 2026-07-30 — v1 DEPLOYED and live at
+Last updated: 2026-08-14 — v1 DEPLOYED and live at
 https://tomchute.github.io/learn-mahjong/ (repo public, Pages via Actions
 from `main`).
 
@@ -138,6 +138,40 @@ verified headless with the network cut:
   gold-italic. Strategy tab documents the graduation path. Retrospective
   feedback (discard grading, hand review) intentionally stays omniscient
   with peek off — live help is gated, post-hoc learning is not.
+
+- **Width-jump fix** (2026-08-14, owner report: "screen sometimes jumps
+  narrower while opponents think") — a transient document scrollbar (content
+  nudging past 100dvh) was stealing ~8px. `html, body { overflow: hidden }`
+  makes it impossible; verified by a playwright width-watch (0 changes over
+  150 samples vs. immediate shrink before).
+
+- **Master coach** (2026-08-14, owner request: advanced hands, tile counting,
+  "master player sitting behind you") — `src/engine/planner.ts`:
+  - **Hand plans**: detects when a flush (mixed 3 fan / pure 7 fan), Seven
+    pairs, or All pongs is realistically in reach (off-plan tile counts,
+    draws-left viability, melds that fit/kill the plan). Strong plans surface
+    once per hand as a "Master idea:" coach message; all reachable plans show
+    in "Explain my hand" (replacing the old one-suit heuristics).
+  - **Live-tile counting**: every wait is annotated with how many copies are
+    actually still unseen ("4萬 — only 1 left"); dead waits get an alarm and
+    downgrade the discard verdict; thin waits (≤2 live) get a counting
+    lesson. The discard grader also points out an equally-fast discard with
+    a wider LIVE wait ("Master note").
+  - **Opponent overlap**: public-evidence suit collectors ("two claimed sets
+    of Characters", "never lets a Circle go") generate warnings when your
+    wait lives in their suit — "Ken looks to be collecting Characters — the
+    4萬 you need may be sitting in their hand."
+  - **Plan-aware grading**: a discard that costs a step of speed but sheds
+    an off-plan tile while a strong plan is live grades "ok — Trading speed
+    for value", not "risky" (the coach no longer scolds flush-building).
+  - **Smarter hint**: ranks by shanten, then (peek only) avoids dealing into
+    a ready opponent, then max live waits, then off-plan shedding; the
+    reason explains any danger detour.
+  - All planner logic uses the player's own tiles + public info only, so it
+    runs outside the Coach's-Peek gate (danger avoidance in hints is the one
+    omniscient piece, and rides the peek setting).
+  - Tests: `tests/planner.test.ts` (14) covering plan detection, collector
+    reads, dead/thin waits, hint steering, verdict softening, store wiring.
 
 ## Refinement backlog (prioritized, none started)
 

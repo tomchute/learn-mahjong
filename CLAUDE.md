@@ -45,6 +45,11 @@ cannot create a Pages site, only deploy to one).
   - `ai.ts` — 3 personalities; hooks attach via `attachAi(game)`.
   - `feedback.ts` — discard grading + hints for the coach (may inspect ALL
     hands — the coach is omniscient by design).
+  - `planner.ts` — master-coach layer: hand plans (flushes / seven pairs /
+    all pongs), live-tile wait counting, opponent suit-collector overlap.
+    Uses ONLY the player's tiles + public info, so it sits outside the
+    Coach's-Peek gate (exception: suggestDiscard's avoidDanger option reads
+    real waits and is peek-gated at the store).
 - `src/store.ts` — `GameStore` singleton: paces AI turns with a ticker,
   translates engine events → coach messages, persists settings/stats to
   localStorage. React binds via `useSyncExternalStore`.

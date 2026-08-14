@@ -8,6 +8,7 @@ import {
   opponentProfile, dangerTiles, myWaitAnalysis, provablySafeKinds, OpponentProfile,
   detectNudges,
 } from './engine/insight';
+import { detectPlans, waitOverlapWarnings } from './engine/planner';
 import { recordDiscard, recordClaim, buildHandReview, HandLogEntry, HandReview } from './engine/review';
 import { pickRandomSeed } from './engine/rng';
 import { Tile, TileKind } from './engine/types';
@@ -91,6 +92,8 @@ export class GameStore {
   private matchCounted = false;
   /** competitor-nudge dedup keys for the current hand */
   private nudgeFired = new Set<string>();
+  /** master-plan suggestions already made this hand (plan id + suit) */
+  private planAnnounced = new Set<string>();
   private msgId = 1;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -126,6 +129,7 @@ export class GameStore {
     this.reviewedHand = 0;
     this.matchCounted = false;
     this.nudgeFired = new Set();
+    this.planAnnounced = new Set();
     this.started = true;
     this.game.startHand();
     const youDeal = this.game.dealer === 0;
@@ -250,7 +254,9 @@ export class GameStore {
   }
 
   askHint() {
-    this.hint = suggestDiscard(this.game);
+    // danger avoidance inside the hint reads opponents' actual waits, so it
+    // rides the Coach's Peek gate like the other omniscient aids
+    this.hint = suggestDiscard(this.game, { avoidDanger: this.settings.peekEnabled });
     if (this.hint) this.say('action', `Coach suggests: discard ${tileName(this.hint.kind)}.`, [this.hint.reason]);
     this.bump();
   }
@@ -283,6 +289,7 @@ export class GameStore {
     this.handLog = [];
     this.myDiscardCount = 0;
     this.nudgeFired = new Set();
+    this.planAnnounced = new Set();
     g.proceed();
     if (!willEnd) {
       this.say('info', `Hand ${g.handNumber}: ${seatLabel(g.roundWind)} round. You are ${seatLabel(g.seatWind(0))}${g.dealer === 0 ? ' — you deal (14 tiles, discard first)' : ''}.`);
@@ -411,6 +418,18 @@ export class GameStore {
       spoke = true;
     }
 
+    // master-plan watch: on your discard turn, surface a strong advanced
+    // shape (flush / seven pairs / all pongs) once per plan per hand. Built
+    // from your own tiles + public info only — no peek needed.
+    if (g.phase === 'awaiting-discard' && g.turn === 0) {
+      const plan = detectPlans(g).find((pl) => pl.strong && !this.planAnnounced.has(pl.id + (pl.suit ?? '')));
+      if (plan) {
+        this.planAnnounced.add(plan.id + (plan.suit ?? ''));
+        this.say('action', plan.headline, [plan.detail]);
+        spoke = true;
+      }
+    }
+
     // your own attack picture, once per hand when you first become ready (peek only)
     if (this.settings.peekEnabled && !this.announcedMyReady && g.players[0].concealed.length % 3 === 1 && g.shantenOf(0) === 0) {
       const waits = myWaitAnalysis(g);
@@ -419,6 +438,7 @@ export class GameStore {
         this.say('good', `You're ready — here's your attack picture.`, [
           ...waits.map((w) =>
             `${tileName(w.kind)}: ${w.unseen} unseen ${w.unseen === 1 ? 'copy' : 'copies'} → ${w.fan} fan (${w.payout} chips).`),
+          ...waitOverlapWarnings(g, waits.filter((w) => w.unseen > 0).map((w) => w.kind)),
           totalUnseen <= 2
             ? 'A narrow wait — if it isn\'t coming, reshaping toward a wider wait is often stronger than waiting it out.'
             : 'A decent wait. Self-drawing adds a fan, and everyone pays — patience can outscore a quick claim.',

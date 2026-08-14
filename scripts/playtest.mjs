@@ -47,8 +47,8 @@ let shots = 6;
 for (let i = 0; i < 240; i++) {
   await page.waitForTimeout(500);
 
-  // hand-end modal?
-  const nextHand = page.locator('.hand-end-modal .btn');
+  // hand-end modal? (has both a Review and a Next-hand button — take primary)
+  const nextHand = page.locator('.hand-end-modal .btn-primary');
   if (await nextHand.count()) {
     await page.screenshot({ path: `${SHOTS}/${String(shots++).padStart(2, '0')}-hand-end.png` });
     await nextHand.click();
