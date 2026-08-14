@@ -229,6 +229,11 @@ describe('planner-aware hints and feedback', () => {
     const store = new GameStore();
     store.startMatch();
     const g = store.game;
+    // the randomly dealt hand may itself contain a strong plan and announce
+    // it during startMatch — clear feed + dedup state so only the rigged
+    // hand's announcement is observed (this was a real CI flake)
+    store.coach.length = 0;
+    (store as any).planAnnounced = new Set();
     rig(g, 0, [
       'chars-1', 'chars-2', 'chars-3', 'chars-5', 'chars-5', 'chars-7', 'chars-8', 'chars-9',
       'wind-E', 'wind-E', 'dragon-R',
