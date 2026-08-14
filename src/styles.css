@@ -1,6 +1,10 @@
 /* Learn Mahjong — mobile-first styles. Green felt table, player perspective. */
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+/* touch-action: manipulation everywhere — iOS ignores user-scalable=no, so
+   Safari's double-tap smart zoom still fires on rapid taps (our tap-twice
+   discard, claim buttons), visibly rescaling the page. manipulation keeps
+   pan + pinch but kills double-tap zoom. */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 :root {
   --felt: #35654d;
