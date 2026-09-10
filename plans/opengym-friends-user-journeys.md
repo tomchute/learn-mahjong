@@ -45,7 +45,7 @@ Alice taps **Invite a friend**. A sheet opens:
 | | |
 | --- | --- |
 | **Sees** | A **QR code**, filling most of the sheet. Under it: *"Have them scan this in their openGym → Friends → Scan a code."* Below that: *"Expires in 7 days · anyone who scans it can see your workouts"* and a **Share a link instead** button. |
-| **Mechanism** | The QR encodes a signed token. Nothing is stored server-side — the token carries Alice's id and an expiry, signed by the server. |
+| **Mechanism** | The QR encodes the **invite link** — Alice's instance URL plus a signed token carrying her id and an expiry. Nothing is stored server-side. Encoding the whole link, not a bare token, is what lets a scanner on a *different* server recognise the mismatch and say so (see *Different servers*). |
 | **Reusable** | One code works for the whole gym crew until it expires. Alice can show it to three people in a row. |
 
 Bob, standing next to her, opens **Settings → Friends → Scan a code**. The camera opens.
@@ -180,11 +180,86 @@ design for speculatively now.
 | Code is over 7 days old | *"This invite has expired — ask for a new one."* |
 | Code is edited or fabricated | *"That code isn't valid."* Indistinguishable from expired, on purpose. |
 | Bob is browsing as a guest | *"Create a profile to add friends."* → the existing profile flow. |
-| Bob is on a different openGym instance | It won't work, and it should say so plainly: *"This invite is for another openGym server."* |
+| Bob is on a different openGym instance | It cannot work — see **Different servers** below, which is a section rather than a row because it is the most likely surprise. |
 | Friend has never trained | *"Bob hasn't logged a workout yet."* |
 | Friend's account is disabled by the admin | They disappear from the feed and the friend list. |
 | Alice is on the demo site, or the Android app | The feature isn't there at all — neither has a backend to sync through. |
 | Alice turns **Friends** off in Settings | The row and the screen disappear. Friendships are untouched and come back when she turns it on. |
+
+---
+
+# Different servers
+
+openGym is self-hosted, so "same instance" is a real constraint and worth being straight about.
+
+## What happens today
+
+Alice's invite link points at **her** server. If Bob has his own openGym, opening it takes him to
+Alice's instance, where he has no profile — he'd be asked to create one. Scanning the QR inside
+his own app fails verification, because the token is signed with Alice's server secret and his
+server has a different one.
+
+Because the QR carries the full link, his app can tell the difference between *"this is for
+another openGym"* and *"this code is broken"*, and say the accurate thing:
+
+> **This invite is for another openGym server** — `gym.alice.example`.
+> Friends only work between profiles on the same server.
+> **Alice can send you her plan as a file instead** →
+
+That last line matters: **it is not a dead end.** Which brings us to the split.
+
+## Half of this already works across servers, today
+
+| Outcome | Same server | Different servers |
+| --- | --- | --- |
+| **1. See when a friend trained, and what they did** | ✅ the feed | ❌ nothing |
+| **2. Take a friend's routine into your plan** | ✅ the Add button | ✅ **already works** — *Export plan file*, send it any way you like, they import it |
+
+openGym has shipped routine sharing across instances since before this feature existed
+(`plan-share.js` → **Settings → Share your plan → Export plan file**). It travels over WhatsApp,
+email, AirDrop, anything. The friends feature makes that *two taps instead of six* when you share
+a server; it does not unlock something otherwise impossible.
+
+So the honest framing: **cross-server costs you the activity feed, not the routine sharing.**
+
+## Why not just build federation
+
+Three reasons, and the first one is fatal on its own:
+
+1. **Most instances aren't reachable.** The quick start is `docker compose up` on
+   `localhost:8080`. Real deployments sit on a LAN, behind Tailscale, or on a home box with no
+   public DNS and no TLS. Alice's server would need to accept inbound connections from Bob's.
+   A perfect protocol still wouldn't work for the majority of users — you'd build it and most
+   people couldn't switch it on.
+2. **Passkeys are origin-bound.** Auth is `RP_ID`/`ORIGIN`-scoped by design, so Bob's browser
+   session means nothing to Alice's server. Every call has to be server-to-server with a
+   long-lived bearer capability — which then needs revocation, so the invite token stops being
+   free (`sign()` with nothing stored) and starts needing a token store.
+3. **It inverts the product's promise.** Solving reachability with a central relay — the only
+   approach that works for people behind NAT — puts everyone's training data back on someone
+   else's server, which is the exact thing openGym's README exists to reject.
+
+Rough cost: **2–3 weeks**, for a feature the majority of self-hosters couldn't enable, on a
+project whose pitch it undercuts. Against ~5 days for the same-server version that covers the
+common case completely.
+
+## What would change this
+
+If openGym ever grows an official hosted instance, or an opt-in relay the project itself runs,
+federation becomes worth revisiting — the reachability problem disappears and the trust question
+has a single, documented answer. Until then, the honest answer to *"can I follow my mate on his
+own server?"* is **no, and here's his plan file.**
+
+## The cheap thing to build instead
+
+When an invite is for another instance, don't just refuse it. Offer the path that works:
+
+- **On Bob's side:** the message above, with a link to the import screen he'd use for a plan file.
+- **On Alice's side:** in the invite sheet, a quiet second line — *"Friend on their own server?
+  Send them your plan as a file instead"* — linking to the existing export.
+
+That's a handful of lines and one string each. It turns the most likely disappointment into the
+feature that already ships.
 
 ---
 
