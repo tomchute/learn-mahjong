@@ -16,6 +16,77 @@ on it first. In practice this is a household, a couple, or a gym crew sharing on
 
 ---
 
+# Before any of this — how people get profiles
+
+Journey A assumes Alice and Bob each have a profile on the same instance. That machinery already
+exists; this is what it actually is, because the friends feature adds nothing to it.
+
+## Setting up the instance
+
+The owner runs `docker compose up` and opens `http://<the-box>:8080`. **A fresh instance is
+open** — anyone who can reach the URL can create a profile. That's deliberate: a family box
+shouldn't need a config session. Two env vars close it down:
+
+| | |
+| --- | --- |
+| `ADMIN_UIDS=<uid>` | Makes that profile an admin — unlocks the admin dashboard (who's training, per-user history, disable an account, issue invites). Unset means **no admin at all**, which is the default. |
+| `INVITE_ONLY=1` | New profiles need a code an admin generates. Codes are 16 hex characters, single-use, revocable until used. |
+| `ALLOW_GUEST` | Whether the "try it without an account" path is offered. Guest data lives in the browser only — no server, no sync, and invisible to friends. |
+
+## Bob gets a profile (~15 seconds)
+
+1. Opens the same URL Alice uses — the instance is one address on their network or over Tailscale.
+2. Taps **Create profile**, types a name.
+3. If `INVITE_ONLY`, enters a code Alice generated in the admin dashboard and sent him.
+4. Face ID / fingerprint / device PIN → a **passkey** is created. No password, no email, no
+   username. He's in.
+
+The account is `{ id: <random>, name, created }` and that's the whole record.
+
+## How Bob sees only Bob's data
+
+- Sign-in issues a **cookie** `gymsid`, an HMAC-signed `uid:expiry:version`, valid 90 days by
+  default. It cannot be edited without the server's secret.
+- Every data route resolves the user **from that cookie** and reads or writes
+  `data/state-<uid>.json` — one file per profile.
+- **No route takes a user id as a parameter** except the admin ones. There is no endpoint Bob
+  could call to ask for Alice's data — not one he's forbidden from, one that doesn't exist.
+
+That is also why the friends feature needs a server-side guard of its own: `GET /api/friends` is
+the **first** non-admin route that returns another person's data, so `areFriends()` is doing work
+nothing else in the codebase has had to do.
+
+## Switching profiles on a shared device
+
+Sign-in requests **discoverable credentials** (`allowCredentials: []`, `residentKey: 'required'`).
+In practice: tap **Sign in**, the OS shows its passkey picker listing every profile saved for that
+site, pick one, biometric, done. On a shared iPad with both passkeys in the keychain, that picker
+**is** the profile switcher — no username to type, no "switch account" screen to build.
+
+## The same person on several devices
+
+The passkey syncs through iCloud Keychain or Google Password Manager, so phone and laptop are
+both "you" and state syncs through the server.
+
+The **native Android app** is the exception: its WebView origin can never match `RP_ID`, so a
+passkey ceremony can't run there. Instead it **pairs** — a signed-in browser mints an 8-character
+code (5-minute expiry, one use), the app redeems it and gets a bearer token. Same idea as the
+friend invite, different lifetime; the invite sheet should look like the pairing screen the app
+already has.
+
+## What this means for friends
+
+- **Names are self-chosen, not unique, and there is no rename.** Two people called Bob are
+  allowed, and the name typed at signup is permanent. The confirm sheet on scanning shows that
+  name, and it is the only identity check — acceptable precisely because invites are physical
+  (a QR you hold up) or a link you sent to someone you know, never a directory you search.
+- **Guests can't be friends.** No profile, no server-side identity — the app says
+  *"Create a profile to add friends."*
+- **Disabled accounts vanish** from friend lists and feeds, because the admin already has that
+  switch and it already drops people from live presence.
+
+---
+
 # Journey A — "Invite a friend, and they see my workouts"
 
 > *I can invite friends to see when I have completed a workout, and they can see what I did in that workout.*
